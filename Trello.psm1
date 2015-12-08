@@ -274,6 +274,10 @@ function Get-TrelloCard
 			{
 				$cards
 			}
+			else
+			{
+				$cards	
+			}
 		}
 		catch
 		{
