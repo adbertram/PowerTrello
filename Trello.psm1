@@ -4,6 +4,8 @@ Set-StrictMode -Version Latest
 $baseUrl = 'https://api.trello.com/1'
 $ProjectName = 'PowerTrello'
 
+Get-TrelloConfiguration ## Sets the global variable $trelloConfig
+
 function Request-TrelloAccessToken
 {
 	[CmdletBinding()]
@@ -583,6 +585,76 @@ function Enable-ChecklistItem
 				'Method' = 'Put'	
 			}
 			Invoke-RestMethod @params
+		}
+		catch
+		{
+			Write-Error $_.Exception.Message
+		}
+	}
+}
+
+function Add-TrelloCardAttachment
+{
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory,ValueFromPipeline)]
+		[ValidateNotNullOrEmpty()]
+		[object]$Card,
+	
+		[Parameter(Mandatory)]
+		[ValidateNotNullOrEmpty()]
+		[ValidateScript({ Test-Path -Path $_ -PathType Leaf })]
+		[string]$FilePath
+	)
+	begin {
+		$ErrorActionPreference = 'Stop'
+	}
+	process {
+		try
+		{
+			$fileName = $FilePath | Split-Path -Leaf
+			$contents = Get-Content -Path $FilePath -Raw
+			$params = @{
+				'Uri' = "$baseUrl/cards/{0}/attachments?file={1}&name={2}&{3}" -f $Card.Id,$contents,$fileName, $trelloConfig.String
+				'Method' = 'Post'
+			}
+			$attachment = Invoke-RestMethod @params
+			
+		}
+		catch
+		{
+			Write-Error $_.Exception.Message
+		}
+	}
+}
+
+function Get-TrelloCardAttachment
+{
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory, ValueFromPipeline)]
+		[ValidateNotNullOrEmpty()]
+		[object]$Card,
+	
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[string]$Name
+	)
+	begin {
+		$ErrorActionPreference = 'Stop'
+	}
+	process {
+		try
+		{
+			$params = @{
+				'Uri' = "$baseUrl/cards/{0}/attachments?{1}" -f $Card.Id,$trelloConfig.String
+			}
+			$attachments = Invoke-RestMethod @params
+			if ($PSBoundParameters.ContainsKey('Name')) {
+				$attachments | where {$_.name -eq $Name}
+			}
 		}
 		catch
 		{
