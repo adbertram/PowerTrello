@@ -655,6 +655,10 @@ function Get-TrelloCardAttachment
 			if ($PSBoundParameters.ContainsKey('Name')) {
 				$attachments | where {$_.name -eq $Name}
 			}
+			else
+			{
+				$attachments	
+			}
 		}
 		catch
 		{
