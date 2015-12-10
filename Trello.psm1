@@ -4,8 +4,6 @@ Set-StrictMode -Version Latest
 $baseUrl = 'https://api.trello.com/1'
 $ProjectName = 'PowerTrello'
 
-Get-TrelloConfiguration ## Sets the global variable $trelloConfig
-
 function Request-TrelloAccessToken
 {
 	[CmdletBinding()]
