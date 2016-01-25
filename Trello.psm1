@@ -219,7 +219,7 @@ function Get-TrelloBoardList
 	(
 		[Parameter(Mandatory,ValueFromPipelineByPropertyName)]
 		[ValidateNotNullOrEmpty()]
-		[Alias('Id')]
+		[Alias('id')]
 		[string]$BoardId
 		
 	)
