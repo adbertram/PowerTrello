@@ -309,7 +309,7 @@ function Get-TrelloCardLabel
 	process {
 		try
 		{
-			$uri = "$baseUrl/boards/{0}/labels?{1}" -f $BoardId, $trelloConfig.String
+			$uri = "$baseUrl/boards/{0}/labels?{1}" -f $Board.Id, $trelloConfig.String
 			Invoke-RestMethod -Uri $uri
 		}
 		catch
