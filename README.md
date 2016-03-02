@@ -21,6 +21,7 @@ PowerTrello is a PowerShell module for interacting with the Trello web service.
         }
 
 NOTE: If you use PSGET, you can install this way:
+
         $uri = 'https://raw.githubusercontent.com/adbertram/PowerTrello/master/Trello.psm1'
         Import-module psget
         Install-module -ModuleUrl $uri 
