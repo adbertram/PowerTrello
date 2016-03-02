@@ -26,7 +26,7 @@ PowerTrello is a PowerShell module for interacting with the Trello web service.
 
 5. Save the token and API key to the registry so you don't have to specify it every time.
 
-  `Set-TrelloConfiguration –ApiKey MYAPIKEY –Token $token`
+  `Set-TrelloConfiguration –ApiKey MYAPIKEY –AccessToken $token`
 
 6. Make the Trello configuration available in your current PowerShell session.
 
