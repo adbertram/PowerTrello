@@ -253,6 +253,10 @@ function Get-TrelloCard
 		[ValidateNotNullOrEmpty()]
 		[string]$Name,
 		
+		[Parameter(ParameterSetName = 'Id')]
+		[ValidateNotNullOrEmpty()]
+		[string]$Id,
+		
 		[Parameter(ParameterSetName = 'Label')]
 		[ValidateNotNullOrEmpty()]
 		[string]$Label,
@@ -281,6 +285,10 @@ function Get-TrelloCard
 			elseif ($PSBoundParameters.ContainsKey('Name'))
 			{
 				$cards | where {$_.Name -eq $Name}
+			}
+			elseif ($PSBoundParameters.ContainsKey('Id'))
+			{
+				$cards | where {$_.idShort -eq $Id}
 			}
 			else
 			{
