@@ -362,7 +362,7 @@ function Add-TrelloCardComment
 	[CmdletBinding()]
 	param
 	(
-		[Parameter(Mandatory, ValueFromPipelineByPropertyName)]
+		[Parameter(Mandatory, ValueFromPipeline)]
 		[ValidateNotNullOrEmpty()]
 		[object]$Card,
 		
