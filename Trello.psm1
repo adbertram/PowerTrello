@@ -863,3 +863,60 @@ function New-TrelloListCard
 		}
 	}
 }
+
+function Add-TrelloChecklist
+{
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [object]$Card,
+        [string]$Name
+    )
+    begin {
+		$ErrorActionPreference = 'Stop'
+	}
+	process {
+		try
+		{
+            if(!($Name))
+            {
+                $Name = "Checklist"
+            }
+            $uri = "$baseUrl/checklists?idCard={0}&name={1}&{2}" -f $Card.Id,$Name,$trelloConfig.String
+			Invoke-RestMethod -Uri $uri -Method Post
+		}
+		catch
+		{
+			Write-Error $_.Exception.Message
+		}
+	}
+}
+
+function Add-TrelloChecklistItem
+{
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$checklistId,
+        [Parameter(Mandatory)]
+        [string]$Name
+    )
+    begin {
+		$ErrorActionPreference = 'Stop'
+	}
+	process {
+		try
+		{
+            if(!($Name))
+            {
+                $Name = "Checklist"
+            }
+            $uri = "$baseUrl/checklists/{0}/checkItems?name={1}&{2}" -f $checklistId,$Name,$trelloConfig.String
+			Invoke-RestMethod -Uri $uri -Method Post
+		}
+		catch
+		{
+			Write-Error $_.Exception.Message
+		}
+	}
+}
