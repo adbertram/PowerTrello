@@ -17,6 +17,10 @@ function Request-TrelloAccessToken
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
 		[string]$Scope = 'read,write',
+
+		[Parameter()]
+		[ValidateSet('never', '1hour', '1day', '30days')]
+		[string]$ExpirationTime = 'never',
 	
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
@@ -33,7 +37,7 @@ function Request-TrelloAccessToken
 	{
 		$httpParams = @{
 			'key' = $apiKey
-			'expiration' = 'never'
+			'expiration' = $ExpirationTime
 			'scope' = $Scope
 			'response_type' = 'token'
 			'name' = $ApplicationName
@@ -88,6 +92,14 @@ function Get-TrelloConfiguration
 	)
 	
 	$ErrorActionPreference = 'Stop'
+
+	function decrypt([string]$TextToDecrypt) {
+		$secure = ConvertTo-SecureString $TextToDecrypt
+		$hook = New-Object system.Management.Automation.PSCredential("test", $secure)
+		$plain = $hook.GetNetworkCredential().Password
+		return $plain
+	}
+
 	try
 	{
 		if (-not (Test-Path -Path $RegistryKeyPath))
@@ -97,10 +109,12 @@ function Get-TrelloConfiguration
 		else
 		{
 			$keyValues = Get-ItemProperty -Path $RegistryKeyPath
+			$ak = decrypt $keyValues.APIKey
+			$at = decrypt $keyValues.AccessToken
 			$global:trelloConfig = [pscustomobject]@{
-				'APIKey' = $keyValues.APIKey;
-				'AccessToken' = $keyValues.AccessToken
-				'String' = "key=$($keyValues.APIKey)&token=$($keyValues.AccessToken)"	
+				'APIKey' = $ak
+				'AccessToken' = $at
+				'String' = "key=$ak&token=$at"	
 			}
 			$trelloConfig
 		}
@@ -127,7 +141,13 @@ function Set-TrelloConfiguration
 		[ValidateNotNullOrEmpty()]
 		[string]$RegistryKeyPath = "HKCU:\Software\$ProjectName"
 	)
-		
+
+	function encrypt([string]$TextToEncrypt) {
+		$secure = ConvertTo-SecureString $TextToEncrypt -AsPlainText -Force
+		$encrypted = $secure | ConvertFrom-SecureString
+		return $encrypted
+	}
+
 	if (-not (Test-Path -Path $RegistryKeyPath))
 	{
 		New-Item -Path ($RegistryKeyPath | Split-Path -Parent) -Name ($RegistryKeyPath | Split-Path -Leaf) | Out-Null
@@ -143,7 +163,7 @@ function Set-TrelloConfiguration
 		else
 		{
 			Write-Verbose "Creating $RegistryKeyPath\$val"
-			New-ItemProperty $RegistryKeyPath -Name $val -Value ((Get-Variable $val).Value) -Force | Out-Null
+			New-ItemProperty $RegistryKeyPath -Name $val -Value $(encrypt $((Get-Variable $val).Value)) -Force | Out-Null
 		}
 	}
 }
