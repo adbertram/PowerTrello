@@ -17,6 +17,10 @@ function Request-TrelloAccessToken
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
 		[string]$Scope = 'read,write',
+
+		[Parameter()]
+		[ValidateSet('never', '1hour', '1day', '30days')]
+		[string]$ExpirationTime = 'never',
 	
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
@@ -33,7 +37,7 @@ function Request-TrelloAccessToken
 	{
 		$httpParams = @{
 			'key' = $apiKey
-			'expiration' = 'never'
+			'expiration' = $ExpirationTime
 			'scope' = $Scope
 			'response_type' = 'token'
 			'name' = $ApplicationName
