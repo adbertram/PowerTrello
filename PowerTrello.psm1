@@ -17,6 +17,10 @@ function Request-TrelloAccessToken
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
 		[string]$Scope = 'read,write',
+
+		[Parameter()]
+		[ValidateSet('never', '1hour', '1day', '30days')]
+		[string]$ExpirationTime = 'never',
 	
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
@@ -33,7 +37,7 @@ function Request-TrelloAccessToken
 	{
 		$httpParams = @{
 			'key' = $apiKey
-			'expiration' = 'never'
+			'expiration' = $ExpirationTime
 			'scope' = $Scope
 			'response_type' = 'token'
 			'name' = $ApplicationName
@@ -88,6 +92,14 @@ function Get-TrelloConfiguration
 	)
 	
 	$ErrorActionPreference = 'Stop'
+
+	function decrypt([string]$TextToDecrypt) {
+		$secure = ConvertTo-SecureString $TextToDecrypt
+		$hook = New-Object system.Management.Automation.PSCredential("test", $secure)
+		$plain = $hook.GetNetworkCredential().Password
+		return $plain
+	}
+
 	try
 	{
 		if (-not (Test-Path -Path $RegistryKeyPath))
@@ -97,10 +109,12 @@ function Get-TrelloConfiguration
 		else
 		{
 			$keyValues = Get-ItemProperty -Path $RegistryKeyPath
+			$ak = decrypt $keyValues.APIKey
+			$at = decrypt $keyValues.AccessToken
 			$global:trelloConfig = [pscustomobject]@{
-				'APIKey' = $keyValues.APIKey;
-				'AccessToken' = $keyValues.AccessToken
-				'String' = "key=$($keyValues.APIKey)&token=$($keyValues.AccessToken)"	
+				'APIKey' = $ak
+				'AccessToken' = $at
+				'String' = "key=$ak&token=$at"	
 			}
 			$trelloConfig
 		}
@@ -127,7 +141,13 @@ function Set-TrelloConfiguration
 		[ValidateNotNullOrEmpty()]
 		[string]$RegistryKeyPath = "HKCU:\Software\$ProjectName"
 	)
-		
+
+	function encrypt([string]$TextToEncrypt) {
+		$secure = ConvertTo-SecureString $TextToEncrypt -AsPlainText -Force
+		$encrypted = $secure | ConvertFrom-SecureString
+		return $encrypted
+	}
+
 	if (-not (Test-Path -Path $RegistryKeyPath))
 	{
 		New-Item -Path ($RegistryKeyPath | Split-Path -Parent) -Name ($RegistryKeyPath | Split-Path -Leaf) | Out-Null
@@ -143,7 +163,7 @@ function Set-TrelloConfiguration
 		else
 		{
 			Write-Verbose "Creating $RegistryKeyPath\$val"
-			New-ItemProperty $RegistryKeyPath -Name $val -Value ((Get-Variable $val).Value) -Force | Out-Null
+			New-ItemProperty $RegistryKeyPath -Name $val -Value $(encrypt $((Get-Variable $val).Value)) -Force | Out-Null
 		}
 	}
 }
@@ -253,6 +273,10 @@ function Get-TrelloCard
 		[ValidateNotNullOrEmpty()]
 		[string]$Name,
 		
+		[Parameter(ParameterSetName = 'Id')]
+		[ValidateNotNullOrEmpty()]
+		[string]$Id,
+		
 		[Parameter(ParameterSetName = 'Label')]
 		[ValidateNotNullOrEmpty()]
 		[string]$Label,
@@ -282,6 +306,10 @@ function Get-TrelloCard
 			{
 				$cards | where {$_.Name -eq $Name}
 			}
+			elseif ($PSBoundParameters.ContainsKey('Id'))
+			{
+				$cards | where {$_.idShort -eq $Id}
+			}
 			else
 			{
 				$cards
@@ -309,7 +337,7 @@ function Get-TrelloCardLabel
 	process {
 		try
 		{
-			$uri = "$baseUrl/boards/{0}/labels?{1}" -f $BoardId, $trelloConfig.String
+			$uri = "$baseUrl/boards/{0}/labels?{1}" -f $Board.Id, $trelloConfig.String
 			Invoke-RestMethod -Uri $uri
 		}
 		catch
@@ -341,6 +369,35 @@ function Set-TrelloCardList
 		{
 			$uri = "$baseUrl/cards/{0}?idList={1}&{2}" -f $CardId, $ListId, $trelloConfig.String
 			Invoke-RestMethod -Uri $uri -Method Put
+		}
+		catch
+		{
+			Write-Error $_.Exception.Message
+		}
+	}
+}
+
+function Add-TrelloCardComment
+{
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory, ValueFromPipeline)]
+		[ValidateNotNullOrEmpty()]
+		[object]$Card,
+		
+		[Parameter(Mandatory)]
+		[ValidateNotNullOrEmpty()]
+		[string]$Comment
+	)
+	begin {
+		$ErrorActionPreference = 'Stop'
+	}
+	process {
+		try
+		{
+			$uri = "$baseUrl/cards/{0}/actions/comments?{1}" -f $Card.Id, $trelloConfig.String
+			Invoke-RestMethod -Uri $uri -Method Post -Body @{ text=$Comment }
 		}
 		catch
 		{
@@ -657,6 +714,225 @@ function Get-TrelloCardAttachment
 			{
 				$attachments	
 			}
+		}
+		catch
+		{
+			Write-Error $_.Exception.Message
+		}
+	}
+}
+
+function New-TrelloBoardList
+{
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory,ValueFromPipelineByPropertyName)]
+		[ValidateNotNullOrEmpty()]
+		[Alias('Id')]
+		[string]$BoardId,
+		
+		[Parameter(Mandatory)]
+		[ValidateNotNullOrEmpty()]
+		[string]$Name,
+
+        [Parameter()]
+		[string]$idListSource,
+
+        [Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[string]$position = 'top'
+	)
+	begin
+	{
+		$ErrorActionPreference = 'Stop'
+	}
+	process
+	{
+		try
+		{
+            $NewListHash = @{
+                'name'=$Name
+                'idBoard' = $BoardId
+                'pos' = $position
+            }
+            if(-not [string]::IsNullOrEmpty($idListSource))
+            {
+                $NewListHash['idListSource'] = $idListSource
+            }
+
+            $RestParams = @{
+                'uri' = "$baseUrl/lists?$($trelloConfig.String)"
+                'Method' = 'Post'
+                'Body' = $NewListHash
+            }
+
+			Invoke-RestMethod @RestParams
+		}
+		catch
+		{
+			Write-Error $_.Exception.Message
+		}
+	}
+}
+
+function New-TrelloListCard
+{
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory,ValueFromPipelineByPropertyName)]
+		[ValidateNotNullOrEmpty()]
+		[Alias('Id')]
+		[string]$ListId,
+		
+		[Parameter()]
+		[string]$Name,
+
+        [Parameter()]
+		[string]$Description,
+
+        [Parameter()]
+		[string]$Position = 'bottom',
+
+        [Parameter()]
+		[string]$idMembers,
+
+        [Parameter()]
+		[string]$idLabels,
+
+        [Parameter()]
+		[string]$urlSource,
+
+        [Parameter()]
+		[string]$fileSource,
+
+        [Parameter()]
+		[string]$idCardSource,
+
+        [Parameter()]
+		[string]$keepFromSource
+	)
+	begin
+	{
+		$ErrorActionPreference = 'Stop'
+	}
+	process
+	{
+		try
+		{
+            $NewCardHash = @{
+                'idList'=$ListId
+            }
+            if(-not [string]::IsNullOrEmpty($Name))
+            {
+                $NewCardHash['name'] = $Name
+            }
+
+            if(-not [string]::IsNullOrEmpty($Description))
+            {
+                $NewCardHash['desc'] = $Description
+            }
+
+            if(-not [string]::IsNullOrEmpty($Position))
+            {
+                $NewCardHash['pos'] = $Position
+            }
+
+            if(-not [string]::IsNullOrEmpty($idMembers))
+            {
+                $NewCardHash['idMembers'] = $idMembers
+            }
+
+            if(-not [string]::IsNullOrEmpty($idLabels))
+            {
+                $NewCardHash['idLabels'] = $idLabels
+            }
+
+            if(-not [string]::IsNullOrEmpty($urlSource))
+            {
+                $NewCardHash['urlSource'] = $urlSource
+            }
+
+            if(-not [string]::IsNullOrEmpty($fileSource))
+            {
+                $NewCardHash['fileSource'] = $fileSource
+            }
+
+            if(-not [string]::IsNullOrEmpty($idCardSource))
+            {
+                $NewCardHash['idCardSource'] = $idCardSource
+            }
+
+            if(-not [string]::IsNullOrEmpty($keepFromSource))
+            {
+                $NewCardHash['keepFromSource'] = $keepFromSource
+            }
+
+            $RestParams = @{
+                'uri' = "$baseUrl/cards?$($trelloConfig.String)"
+                'Method' = 'Post'
+                'Body' = $NewCardHash
+            }
+
+			Invoke-RestMethod @RestParams
+		}
+		catch
+		{
+			Write-Error $_.Exception.Message
+		}
+	}
+}
+
+function Add-TrelloChecklist
+{
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [object]$Card,
+        [string]$Name
+    )
+    begin {
+		$ErrorActionPreference = 'Stop'
+	}
+	process {
+		try
+		{
+            if(!($Name))
+            {
+                $Name = "Checklist"
+            }
+            $uri = "$baseUrl/checklists?idCard={0}&name={1}&{2}" -f $Card.Id,$Name,$trelloConfig.String
+			Invoke-RestMethod -Uri $uri -Method Post
+		}
+		catch
+		{
+			Write-Error $_.Exception.Message
+		}
+	}
+}
+
+function Add-TrelloChecklistItem
+{
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$checklistId,
+        [Parameter(Mandatory)]
+        [string]$Name
+    )
+    begin {
+		$ErrorActionPreference = 'Stop'
+	}
+	process {
+		try
+		{
+            if(!($Name))
+            {
+                $Name = "Checklist"
+            }
+            $uri = "$baseUrl/checklists/{0}/checkItems?name={1}&{2}" -f $checklistId,$Name,$trelloConfig.String
+			Invoke-RestMethod -Uri $uri -Method Post
 		}
 		catch
 		{
