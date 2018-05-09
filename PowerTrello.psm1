@@ -3,6 +3,7 @@ Set-StrictMode -Version Latest
 
 $baseUrl = 'https://api.trello.com/1'
 $ProjectName = 'PowerTrello'
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 function Request-TrelloAccessToken
 {
@@ -45,7 +46,7 @@ function Request-TrelloAccessToken
 		}
 		
 		$keyValues = @()
-		$httpParams.GetEnumerator() | sort Name | foreach {
+		$httpParams.GetEnumerator() | Sort-Object Name | ForEach-Object {
 			$keyValues += "$($_.Key)=$($_.Value)"
 		}
 		
@@ -201,7 +202,7 @@ function Get-TrelloBoard
 			}
 			
 			$keyValues = @()
-			$getParams.GetEnumerator() | foreach {
+			$getParams.GetEnumerator() | ForEach-Object {
 				$keyValues += "$($_.Key)=$($_.Value)"
 			}
 			
@@ -212,7 +213,7 @@ function Get-TrelloBoard
 				'ByName' {
 					$uri = "$baseUrl/members/me/boards"
 					$boards = Invoke-RestMethod -Uri ('{0}?{1}' -f $uri, $paramString)
-					$boards | where { $_.name -eq $Name }
+					$boards | Where-Object { $_.name -eq $Name }
 				}
 				'ById' {
 					$uri = "$baseUrl/boards/$Id"
@@ -296,7 +297,7 @@ function Get-TrelloCard
 		{
 			$cards = Invoke-RestMethod -Uri "$baseUrl/boards/$($Board.Id)/cards?$($trelloConfig.String)"
 			if ($PSBoundParameters.ContainsKey('Label')) {
-				$cards | where { if (($_.labels) -and $_.labels.Name -contains $Label) { $true } }
+				$cards | Where-Object { if (($_.labels) -and $_.labels.Name -contains $Label) { $true } }
 			}
 			elseif ($PSBoundParameters.ContainsKey('Due'))
 			{
@@ -304,11 +305,11 @@ function Get-TrelloCard
 			}
 			elseif ($PSBoundParameters.ContainsKey('Name'))
 			{
-				$cards | where {$_.Name -eq $Name}
+				$cards | Where-Object {$_.Name -eq $Name}
 			}
 			elseif ($PSBoundParameters.ContainsKey('Id'))
 			{
-				$cards | where {$_.idShort -eq $Id}
+				$cards | Where-Object {$_.idShort -eq $Id}
 			}
 			else
 			{
@@ -525,7 +526,7 @@ function Get-Checklist
 		{
 			$checkLists = Invoke-RestMethod -Uri ("$baseUrl/cards/{0}/checklists?{1}" -f $Card.Id, $trelloConfig.String)
 			if ($PSBoundParameters.ContainsKey('Name')) {
-				$checkLists | where {$_.name -eq $Name}
+				$checkLists | Where-Object {$_.name -eq $Name}
 			}
 			else
 			{
@@ -559,7 +560,7 @@ function Get-ChecklistItem
 		try
 		{
 			if ($PSBoundParameters.ContainsKey('Name')) {
-				$checklist.checkItems | where {$_.Name -eq $Name}
+				$checklist.checkItems | Where-Object {$_.Name -eq $Name}
 			}
 			else
 			{
@@ -708,7 +709,7 @@ function Get-TrelloCardAttachment
 			}
 			$attachments = Invoke-RestMethod @params
 			if ($PSBoundParameters.ContainsKey('Name')) {
-				$attachments | where {$_.name -eq $Name}
+				$attachments | Where-Object {$_.name -eq $Name}
 			}
 			else
 			{
@@ -766,7 +767,7 @@ function New-TrelloBoardList
                 'Method' = 'Post'
                 'Body' = $NewListHash
             }
-
+			
 			Invoke-RestMethod @RestParams
 		}
 		catch
@@ -874,7 +875,7 @@ function New-TrelloListCard
                 'Method' = 'Post'
                 'Body' = $NewCardHash
             }
-
+			
 			Invoke-RestMethod @RestParams
 		}
 		catch
@@ -902,7 +903,7 @@ function Add-TrelloChecklist
             {
                 $Name = "Checklist"
             }
-            $uri = "$baseUrl/checklists?idCard={0}&name={1}&{2}" -f $Card.Id,$Name,$trelloConfig.String
+			$uri = "$baseUrl/checklists?idCard={0}&name={1}&{2}" -f $Card.Id,$Name,$trelloConfig.String
 			Invoke-RestMethod -Uri $uri -Method Post
 		}
 		catch
@@ -931,8 +932,110 @@ function Add-TrelloChecklistItem
             {
                 $Name = "Checklist"
             }
-            $uri = "$baseUrl/checklists/{0}/checkItems?name={1}&{2}" -f $checklistId,$Name,$trelloConfig.String
+			$uri = "$baseUrl/checklists/{0}/checkItems?name={1}&{2}" -f $checklistId,$Name,$trelloConfig.String
 			Invoke-RestMethod -Uri $uri -Method Post
+		}
+		catch
+		{
+			Write-Error $_.Exception.Message
+		}
+	}
+}
+
+function New-TrelloBoard
+{
+    [CmdletBinding()]
+	param
+	(
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[string]$Name
+	)
+
+    begin
+	{
+		$ErrorActionPreference = 'Stop'
+	}
+	process
+	{
+		try
+		{
+            $params = @{
+				'key' = $trelloConfig.APIKey
+				'token' = $trelloConfig.AccessToken
+                'name' = $Name
+			}
+			Invoke-RestMethod -Uri "$baseUrl/boards" -Method Post -Body $params
+		}
+		catch
+		{
+			Write-Error $_.Exception.Message
+		}
+	}
+}
+
+function Close-TrelloBoardList
+{
+    [CmdletBinding()]
+	param
+	(
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[string]$ListId
+	)
+
+    begin
+	{
+		$ErrorActionPreference = 'Stop'
+	}
+	process
+	{
+		try
+		{
+            $params = @{
+				'key' = $trelloConfig.APIKey
+				'token' = $trelloConfig.AccessToken
+                'closed' = 'true'
+            }
+            $json = $params | ConvertTo-Json
+			$null = Invoke-RestMethod -Uri "$baseUrl/lists/$ListId" -Method Put -Body $json -ContentType 'application/json'
+		}
+		catch
+		{
+			Write-Error $_.Exception.Message
+		}
+	}
+
+}
+
+function Rename-TrelloBoardList
+{
+    [CmdletBinding()]
+	param
+	(
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[string]$ListId,
+        [Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[string]$NewName
+	)
+
+    begin
+	{
+		$ErrorActionPreference = 'Stop'
+	}
+	process
+	{
+		try
+		{
+            $params = @{
+				'key' = $trelloConfig.APIKey
+				'token' = $trelloConfig.AccessToken
+                'name' = $NewName
+            }
+            $json = $params | ConvertTo-Json
+			$null = Invoke-RestMethod -Uri "$baseUrl/lists/$ListId" -Method Put -Body $json -ContentType 'application/json'
 		}
 		catch
 		{
