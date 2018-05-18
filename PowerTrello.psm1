@@ -1043,3 +1043,37 @@ function Rename-TrelloBoardList
 		}
 	}
 }
+
+
+function Rename-TrelloBoardCard
+{
+    [CmdletBinding()]
+  param
+    (
+      [Parameter(Mandatory, ValueFromPipeline)]
+      [ValidateNotNullOrEmpty()]
+      [object]$Board,
+      [ValidateNotNullOrEmpty()]
+      [string]$NewName,
+      [ValidateNotNullOrEmpty()]
+      [string]$Id
+	)
+
+
+    begin
+	{
+		$ErrorActionPreference = 'Stop'
+	}
+	process
+	{
+		try
+		{
+            $uri = "$baseUrl/cards/{0}?name={1}&idBoard={2}&{3}" -f $Id, $NewName, $($Board.Id), $trelloConfig.String
+            Invoke-RestMethod -Uri $uri -Method Put
+		}
+		catch
+		{
+			Write-Error $_.Exception.Message
+		}
+	}
+}
