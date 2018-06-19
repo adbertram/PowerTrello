@@ -3,6 +3,7 @@ Set-StrictMode -Version Latest
 
 $baseUrl = 'https://api.trello.com/1'
 $ProjectName = 'PowerTrello'
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 function Request-TrelloAccessToken {
 	[CmdletBinding()]
