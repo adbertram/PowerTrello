@@ -367,10 +367,10 @@ function Add-TrelloCardMember {
 	}
 	process {
 		try {
-			if ($Card.idMembers) {
+			if ($Card.MemberId) {
 				throw 'Existing members found on card. This is not supported yet.'
 			} else {
-				$uri = "$baseUrl/cards/{0}?idMembers={1}&{2}" -f $Card.Id, $MemberId, $trelloConfig.String	
+				$uri = "$baseUrl/cards/{0}?MemberId={1}&{2}" -f $Card.Id, $MemberId, $trelloConfig.String	
 			}
 			
 			Invoke-RestMethod -Uri $uri -Method Put
@@ -419,7 +419,7 @@ function Remove-TrelloCardMember {
 	}
 	process {
 		try {
-			$uri = "$baseUrl/cards/{0}/idMembers/{1}?{2}" -f $Card.Id, $MemberId, $trelloConfig.String
+			$uri = "$baseUrl/cards/{0}/MemberId/{1}?{2}" -f $Card.Id, $MemberId, $trelloConfig.String
 			Invoke-RestMethod -Uri $uri -Method Delete
 		} catch {
 			Write-Error $_.Exception.Message
@@ -633,10 +633,10 @@ function New-TrelloCard {
 		[string]$Position = 'bottom',
 
 		[Parameter()]
-		[string]$idMembers,
+		[string[]]$MemberId,
 
 		[Parameter()]
-		[string]$idLabels,
+		[string[]]$LabelId,
 
 		[Parameter()]
 		[string]$urlSource,
@@ -670,12 +670,12 @@ function New-TrelloCard {
 				$NewCardHash['pos'] = $Position
 			}
 
-			if(-not [string]::IsNullOrEmpty($idMembers)) {
-				$NewCardHash['idMembers'] = $idMembers
+			if(-not [string]::IsNullOrEmpty($MemberId)) {
+				$NewCardHash['idMembers'] = $MemberId -join ','
 			}
 
-			if(-not [string]::IsNullOrEmpty($idLabels)) {
-				$NewCardHash['idLabels'] = $idLabels
+			if(-not [string]::IsNullOrEmpty($LabelId)) {
+				$NewCardHash['idLabels'] = $LabelId -join ','
 			}
 
 			if(-not [string]::IsNullOrEmpty($urlSource)) {
