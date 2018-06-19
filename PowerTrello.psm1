@@ -635,6 +635,40 @@ function Get-TrelloCardAttachment {
 	}
 }
 
+function Set-CustomField {
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory, ValueFromPipeline)]
+		[ValidateNotNullOrEmpty()]
+		[object]$Card,
+
+		[Parameter(Mandatory)]
+		[pscustomobject]$CustomField,
+
+		[Parameter(Mandatory)]
+		[string]$CustomFieldName,
+
+		[Parameter(Mandatory)]
+		[string]$CustomFieldValue
+	)
+
+	$ErrorActionPreference = 'Stop'
+
+	$cusFieldId = ($CustomField.options | where { $_.Value.text -eq $CustomFieldName }).id
+
+	$RestParams = @{
+		'uri'     = '{0}/card/{1}/customField/{2}/item?idValue={4}&{3}' -f $baseUrl, $Card.Id, $CustomField.id, $trelloConfig.String, $cusFieldId
+		'Method'  = 'PUT'
+		'Body' = @{
+			'value' = @{ $CustomField.type = $CustomFieldValue }
+		}
+	}
+
+	$null = Invoke-RestMethod @RestParams
+	
+}
+
 function New-TrelloCard {
 	[CmdletBinding()]
 	param
@@ -658,6 +692,15 @@ function New-TrelloCard {
 
 		[Parameter()]
 		[string[]]$LabelId,
+
+		[Parameter()]
+		[pscustomobject]$CustomField,
+
+		[Parameter()]
+		[string]$CustomFieldName,
+
+		[Parameter()]
+		[string]$CustomFieldValue,
 
 		[Parameter()]
 		[string]$urlSource,
@@ -721,7 +764,11 @@ function New-TrelloCard {
 				'Body'   = $NewCardHash
 			}
 
-			Invoke-RestMethod @RestParams
+			$card = Invoke-RestMethod @RestParams
+
+			if ($PSBoundParameters.ContainsKey('CustomField')) {
+				Set-CustomField -Card $card -CustomField $CustomField -CustomFieldName $CustomFieldName -CustomFieldValue $CustomFieldValue
+			}
 		} catch {
 			Write-Error $_.Exception.Message
 		}
