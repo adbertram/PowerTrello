@@ -644,10 +644,7 @@ function Set-CustomField {
 		[object]$Card,
 
 		[Parameter(Mandatory)]
-		[pscustomobject]$CustomField,
-
-		[Parameter(Mandatory)]
-		[string]$CustomFieldName,
+		[pscustomobject]$CustomFieldName,
 
 		[Parameter(Mandatory)]
 		[string]$CustomFieldValue
@@ -655,10 +652,12 @@ function Set-CustomField {
 
 	$ErrorActionPreference = 'Stop'
 
-	$cusFieldId = ($CustomField.options | where { $_.Value.text -eq $CustomFieldName }).id
+	$cusField = (Get-TrelloCustomField -BoardId $testCard.idBoard) | where {$_.name -eq $CustomFieldName}
+
+	$cusFieldId = ($cusField.options | where { $_.Value.text -eq $CustomFieldValue }).id
 
 	$RestParams = @{
-		'uri'     = '{0}/card/{1}/customField/{2}/item?idValue={4}&{3}' -f $baseUrl, $Card.Id, $CustomField.id, $trelloConfig.String, $cusFieldId
+		'uri'     = '{0}/card/{1}/customField/{2}/item?idValue={3}&{4}' -f $baseUrl, $Card.Id, $CustomField.id, $cusFieldId, $trelloConfig.String
 		'Method'  = 'PUT'
 		'Body' = @{
 			'value' = @{ $CustomField.type = $CustomFieldValue }
@@ -692,9 +691,6 @@ function New-TrelloCard {
 
 		[Parameter()]
 		[string[]]$LabelId,
-
-		[Parameter()]
-		[pscustomobject]$CustomField,
 
 		[Parameter()]
 		[string]$CustomFieldName,
@@ -766,8 +762,8 @@ function New-TrelloCard {
 
 			$card = Invoke-RestMethod @RestParams
 
-			if ($PSBoundParameters.ContainsKey('CustomField')) {
-				Set-CustomField -Card $card -CustomField $CustomField -CustomFieldName $CustomFieldName -CustomFieldValue $CustomFieldValue
+			if ($PSBoundParameters.ContainsKey('CustomFieldName')) {
+				Set-CustomField -Card $card -CustomFieldName $CustomFieldName -CustomFieldValue $CustomFieldValue
 			}
 		} catch {
 			Write-Error $_.Exception.Message
