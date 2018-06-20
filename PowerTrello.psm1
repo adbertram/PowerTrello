@@ -652,15 +652,15 @@ function Set-CustomField {
 
 	$ErrorActionPreference = 'Stop'
 
-	$cusField = (Get-TrelloCustomField -BoardId $testCard.idBoard) | where {$_.name -eq $CustomFieldName}
+	$cusField = (Get-TrelloCustomField -BoardId $Card.idBoard) | where {$_.name -eq $CustomFieldName}
 
 	$cusFieldId = ($cusField.options | where { $_.Value.text -eq $CustomFieldValue }).id
 
 	$RestParams = @{
-		'uri'     = '{0}/card/{1}/customField/{2}/item?idValue={3}&{4}' -f $baseUrl, $Card.Id, $CustomField.id, $cusFieldId, $trelloConfig.String
+		'uri'     = '{0}/card/{1}/customField/{2}/item?idValue={3}&{4}' -f $baseUrl, $Card.Id, $cusField.id, $cusFieldId, $trelloConfig.String
 		'Method'  = 'PUT'
 		'Body' = @{
-			'value' = @{ $CustomField.type = $CustomFieldValue }
+			'value' = @{ $cusField.type = $CustomFieldValue }
 		}
 	}
 
