@@ -86,7 +86,7 @@ function Get-TrelloConfiguration {
 	$ErrorActionPreference = 'Stop'
 
 	function decrypt([string]$TextToDecrypt) {
-		$secure = ConvertTo-SecureString -AsPlainText -Force -String $TextToDecrypt
+		$secure = ConvertTo-SecureString $TextToDecrypt
 		$hook = New-Object system.Management.Automation.PSCredential("test", $secure)
 		$plain = $hook.GetNetworkCredential().Password
 		return $plain
