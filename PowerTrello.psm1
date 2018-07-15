@@ -258,7 +258,11 @@ function Get-TrelloCard {
 
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
-		[switch]$IncludeArchived
+		[switch]$IncludeArchived,
+
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[switch]$IncludeAllActivity
 	)
 	begin {
 		$ErrorActionPreference = 'Stop'
@@ -271,17 +275,19 @@ function Get-TrelloCard {
 			}
 			$cards = Invoke-RestMethod -Uri "$baseUrl/boards/$($Board.Id)/cards?filter=$filter&$($trelloConfig.String)"
 			if ($PSBoundParameters.ContainsKey('Label')) {
-				$cards | where { if (($_.labels) -and $_.labels.Name -contains $Label) { $true } }
+				$cards = $cards | where { if (($_.labels) -and $_.labels.Name -contains $Label) { $true } }
 			} elseif ($PSBoundParameters.ContainsKey('Due')) {
-				$cards
+				Write-Warning -Message 'Due functionality is not complete.'
 			} elseif ($PSBoundParameters.ContainsKey('Name')) {
-				$cards | where {$_.Name -eq $Name}
+				$cards = $cards | where {$_.Name -eq $Name}
 			} elseif ($PSBoundParameters.ContainsKey('Id')) {
-				$cards | where {$_.idShort -eq $Id}
+				$cards = $cards | where {$_.idShort -eq $Id}
 			} elseif ($PSBoundParameters.ContainsKey('List')) {
-				$cards | where {$_.idList -eq $List.id }
-			} else {
-				$cards
+				$cards = $cards | where {$_.idList -eq $List.id }
+			}
+
+			if ($IncludeAllActivity.IsPresent) {
+				$cards | Select-Object -Property *,@{n='Activity';e={ Get-TrelloCardAction -Card $_ }}
 			}
 		} catch {
 			Write-Error $_.Exception.Message
