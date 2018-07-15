@@ -655,12 +655,12 @@ function Get-TrelloCardAction {
 		[ValidateNotNullOrEmpty()]
 		[object]$Card,
 	
-		[Parameter(Mandatory)]
+		[Parameter()]
 		[ValidateNotNullOrEmpty()]
-		[ValidateSet('UpdateCard')]
+		[ValidateSet('updateCard')] ## More are possible but haven't been tested
 		[string]$ActionFilter,
 
-		[Parameter(Mandatory)]
+		[Parameter()]
 		[ValidateNotNullOrEmpty()]
 		[string]$ActionFilterValue
 	)
@@ -669,10 +669,12 @@ function Get-TrelloCardAction {
 	}
 	process {
 		try {
-			$params = @{
-				'Uri' = "$baseUrl/cards/{0}/actions?filter={1}:{2}&{3}" -f $Card.Id, $ActionFilter, $ActionFilterValue, $trelloConfig.String
+			if ($PSBoundParameters.ContainsKey('ActionFilter')) {
+				$uri = "$baseUrl/cards/{0}/actions?filter={1}:{2}&limit=1000&{3}" -f $Card.Id, $ActionFilter, $ActionFilterValue, $trelloConfig.String
+			} else {
+				$uri = "$baseUrl/cards/{0}/actions?limit=1000&{1}" -f $Card.Id, $trelloConfig.String
 			}
-			Invoke-RestMethod @params
+			Invoke-RestMethod -Uri $uri
 		} catch {
 			Write-Error $_.Exception.Message
 		}
