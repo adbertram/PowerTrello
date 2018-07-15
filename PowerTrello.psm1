@@ -74,26 +74,6 @@ function Request-TrelloAccessToken {
 	}
 }
 
-function NewUriAuthenticationString {
-	[OutputType('string')]
-	[CmdletBinding()]
-	param
-	(
-		[Parameter(Mandatory)]
-		[ValidateNotNullOrEmpty()]
-		[string]$ApiKey,
-
-		[Parameter(Mandatory)]
-		[ValidateNotNullOrEmpty()]
-		[string]$AccessToken
-	)
-
-	$ErrorActionPreference = 'Stop'
-
-	"key=$ApiKey&token=$AccessToken"
-	
-}
-
 function Get-TrelloConfiguration {
 	[CmdletBinding()]
 	param
@@ -106,7 +86,7 @@ function Get-TrelloConfiguration {
 	$ErrorActionPreference = 'Stop'
 
 	function decrypt([string]$TextToDecrypt) {
-		$secure = ConvertTo-SecureString $TextToDecrypt
+		$secure = ConvertTo-SecureString -AsPlainText -Force -String $TextToDecrypt
 		$hook = New-Object system.Management.Automation.PSCredential("test", $secure)
 		$plain = $hook.GetNetworkCredential().Password
 		return $plain
@@ -122,7 +102,7 @@ function Get-TrelloConfiguration {
 			$global:trelloConfig = [pscustomobject]@{
 				'APIKey'      = $ak
 				'AccessToken' = $at
-				'String'      = (NewUriAuthenticationString -ApiKey $ak -AccessToken $at)
+				'String'      = "key=$ak&token=$at"	
 			}
 			$trelloConfig
 		}
@@ -182,30 +162,17 @@ function Get-TrelloBoard {
 	
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
-		[switch]$IncludeClosedBoards,
-
-		[Parameter()]
-		[ValidateNotNullOrEmpty()]
-		[pscredential]$ApiCredential
+		[switch]$IncludeClosedBoards
 	)
 	begin {
 		$ErrorActionPreference = 'Stop'
 	}
 	process {
 		try {
-
-			if ($PSBoundParameters.ContainsKey('ApiCredential')) {
-				$getParams = @{
-					'key'   = $ApiCredential.UserName
-					'token' = $ApiCredential.GetNetworkCredential().Password
-				}
-			} else {
-				$getParams = @{
-					'key'   = $trelloConfig.APIKey
-					'token' = $trelloConfig.AccessToken
-				}
+			$getParams = @{
+				'key'   = $trelloConfig.APIKey
+				'token' = $trelloConfig.AccessToken
 			}
-
 			if (-not $IncludeClosedBoards.IsPresent) {
 				$getParams.filter = 'open'
 			}
@@ -245,11 +212,7 @@ function Get-TrelloList {
 		[Parameter(Mandatory, ValueFromPipelineByPropertyName)]
 		[ValidateNotNullOrEmpty()]
 		[Alias('id')]
-		[string]$BoardId,
-
-		[Parameter()]
-		[ValidateNotNullOrEmpty()]
-		[pscredential]$ApiCredential
+		[string]$BoardId
 		
 	)
 	begin {
@@ -257,15 +220,7 @@ function Get-TrelloList {
 	}
 	process {
 		try {
-			if ($PSBoundParameters.ContainsKey('ApiCredential')) {
-				$apiKey = $ApiCredential.UserName
-				$accessToken = $ApiCredential.GetNetworkCredential().Password
-			} else {
-				$apiKey = $trelloConfig.APIKey
-				$accessToken = $trelloConfig.AccessToken
-			}
-			$authString = NewUriAuthenticationString -ApiKey $apiKey -AccessToken $accessToken
-			Invoke-RestMethod -Uri "$baseUrl/boards/$BoardId/lists?$authString"
+			Invoke-RestMethod -Uri "$baseUrl/boards/$BoardId/lists?$($trelloConfig.String)"
 		} catch {
 			Write-Error $_.Exception.Message
 		}
@@ -279,6 +234,10 @@ function Get-TrelloCard {
 		[Parameter(Mandatory, ValueFromPipeline)]
 		[ValidateNotNullOrEmpty()]
 		[object]$Board,
+
+		[Parameter(ParameterSetName = 'List')]
+		[ValidateNotNullOrEmpty()]
+		[object]$List,
 		
 		[Parameter(ParameterSetName = 'Name')]
 		[ValidateNotNullOrEmpty()]
@@ -299,25 +258,18 @@ function Get-TrelloCard {
 
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
-		[pscredential]$ApiCredential
-		
-		
+		[switch]$IncludeArchived
 	)
 	begin {
 		$ErrorActionPreference = 'Stop'
 	}
 	process {
 		try {
-			if ($PSBoundParameters.ContainsKey('ApiCredential')) {
-				$apiKey = $ApiCredential.UserName
-				$accessToken = $ApiCredential.GetNetworkCredential().Password
-			} else {
-				$apiKey = $trelloConfig.APIKey
-				$accessToken = $trelloConfig.AccessToken
+			$filter = 'open'
+			if ($IncludeArchived.IsPresent) {
+				$filter = 'all'
 			}
-			$authString = NewUriAuthenticationString -ApiKey $apiKey -AccessToken $accessToken
-
-			$cards = Invoke-RestMethod -Uri "$baseUrl/boards/$($Board.Id)/cards?$authString"
+			$cards = Invoke-RestMethod -Uri "$baseUrl/boards/$($Board.Id)/cards?filter=$filter&$($trelloConfig.String)"
 			if ($PSBoundParameters.ContainsKey('Label')) {
 				$cards | where { if (($_.labels) -and $_.labels.Name -contains $Label) { $true } }
 			} elseif ($PSBoundParameters.ContainsKey('Due')) {
@@ -326,6 +278,8 @@ function Get-TrelloCard {
 				$cards | where {$_.Name -eq $Name}
 			} elseif ($PSBoundParameters.ContainsKey('Id')) {
 				$cards | where {$_.idShort -eq $Id}
+			} elseif ($PSBoundParameters.ContainsKey('List')) {
+				$cards | where {$_.idList -eq $List.id }
 			} else {
 				$cards
 			}
@@ -341,26 +295,14 @@ function Get-TrelloLabel {
 	(
 		[Parameter(Mandatory, ValueFromPipeline)]
 		[ValidateNotNullOrEmpty()]
-		[object]$Board,
-
-		[Parameter()]
-		[ValidateNotNullOrEmpty()]
-		[pscredential]$ApiCredential
+		[object]$Board
 	)
 	begin {
 		$ErrorActionPreference = 'Stop'
 	}
 	process {
 		try {
-			if ($PSBoundParameters.ContainsKey('ApiCredential')) {
-				$apiKey = $ApiCredential.UserName
-				$accessToken = $ApiCredential.GetNetworkCredential().Password
-			} else {
-				$apiKey = $trelloConfig.APIKey
-				$accessToken = $trelloConfig.AccessToken
-			}
-			$authString = NewUriAuthenticationString -ApiKey $apiKey -AccessToken $accessToken
-			$uri = "$baseUrl/boards/{0}/labels?{1}" -f $Board.Id, $authString
+			$uri = "$baseUrl/boards/{0}/labels?{1}" -f $Board.Id, $trelloConfig.String
 			Invoke-RestMethod -Uri $uri
 		} catch {
 			Write-Error $_.Exception.Message
@@ -379,26 +321,14 @@ function Set-TrelloList {
 		
 		[Parameter(Mandatory)]
 		[ValidateNotNullOrEmpty()]
-		[string]$ListId,
-
-		[Parameter()]
-		[ValidateNotNullOrEmpty()]
-		[pscredential]$ApiCredential
+		[string]$ListId
 	)
 	begin {
 		$ErrorActionPreference = 'Stop'
 	}
 	process {
 		try {
-			if ($PSBoundParameters.ContainsKey('ApiCredential')) {
-				$apiKey = $ApiCredential.UserName
-				$accessToken = $ApiCredential.GetNetworkCredential().Password
-			} else {
-				$apiKey = $trelloConfig.APIKey
-				$accessToken = $trelloConfig.AccessToken
-			}
-			$authString = NewUriAuthenticationString -ApiKey $apiKey -AccessToken $accessToken
-			$uri = "$baseUrl/cards/{0}?idList={1}&{2}" -f $CardId, $ListId, $authString
+			$uri = "$baseUrl/cards/{0}?idList={1}&{2}" -f $CardId, $ListId, $trelloConfig.String
 			Invoke-RestMethod -Uri $uri -Method Put
 		} catch {
 			Write-Error $_.Exception.Message
@@ -416,26 +346,14 @@ function Add-TrelloCardComment {
 		
 		[Parameter(Mandatory)]
 		[ValidateNotNullOrEmpty()]
-		[string]$Comment,
-
-		[Parameter()]
-		[ValidateNotNullOrEmpty()]
-		[pscredential]$ApiCredential
+		[string]$Comment
 	)
 	begin {
 		$ErrorActionPreference = 'Stop'
 	}
 	process {
 		try {
-			if ($PSBoundParameters.ContainsKey('ApiCredential')) {
-				$apiKey = $ApiCredential.UserName
-				$accessToken = $ApiCredential.GetNetworkCredential().Password
-			} else {
-				$apiKey = $trelloConfig.APIKey
-				$accessToken = $trelloConfig.AccessToken
-			}
-			$authString = NewUriAuthenticationString -ApiKey $apiKey -AccessToken $accessToken
-			$uri = "$baseUrl/cards/{0}/actions/comments?{1}" -f $Card.Id, $authString
+			$uri = "$baseUrl/cards/{0}/actions/comments?{1}" -f $Card.Id, $trelloConfig.String
 			Invoke-RestMethod -Uri $uri -Method Post -Body @{ text =$Comment }
 		} catch {
 			Write-Error $_.Exception.Message
@@ -453,11 +371,7 @@ function Add-TrelloCardMember {
 	
 		[Parameter(Mandatory)]
 		[ValidateNotNullOrEmpty()]
-		[string]$MemberId,
-
-		[Parameter()]
-		[ValidateNotNullOrEmpty()]
-		[pscredential]$ApiCredential
+		[string]$MemberId
 		
 	)
 	begin {
@@ -468,15 +382,7 @@ function Add-TrelloCardMember {
 			if ($Card.MemberId) {
 				throw 'Existing members found on card. This is not supported yet.'
 			} else {
-				if ($PSBoundParameters.ContainsKey('ApiCredential')) {
-					$apiKey = $ApiCredential.UserName
-					$accessToken = $ApiCredential.GetNetworkCredential().Password
-				} else {
-					$apiKey = $trelloConfig.APIKey
-					$accessToken = $trelloConfig.AccessToken
-				}
-				$authString = NewUriAuthenticationString -ApiKey $apiKey -AccessToken $accessToken
-				$uri = "$baseUrl/cards/{0}?MemberId={1}&{2}" -f $Card.Id, $MemberId, $authString
+				$uri = "$baseUrl/cards/{0}?MemberId={1}&{2}" -f $Card.Id, $MemberId, $trelloConfig.String	
 			}
 			
 			Invoke-RestMethod -Uri $uri -Method Put
@@ -493,26 +399,14 @@ function Get-TrelloMember {
 		[Parameter(Mandatory, ValueFromPipelineByPropertyName)]
 		[ValidateNotNullOrEmpty()]
 		[Alias('Id')]
-		[string]$BoardId,
-
-		[Parameter()]
-		[ValidateNotNullOrEmpty()]
-		[pscredential]$ApiCredential
+		[string]$BoardId
 	)
 	begin {
 		$ErrorActionPreference = 'Stop'
 	}
 	process {
 		try {
-			if ($PSBoundParameters.ContainsKey('ApiCredential')) {
-				$apiKey = $ApiCredential.UserName
-				$accessToken = $ApiCredential.GetNetworkCredential().Password
-			} else {
-				$apiKey = $trelloConfig.APIKey
-				$accessToken = $trelloConfig.AccessToken
-			}
-			$authString = NewUriAuthenticationString -ApiKey $apiKey -AccessToken $accessToken
-			Invoke-RestMethod -Uri ("$baseUrl/boards/{0}/members?{1}" -f $BoardId, $authString)
+			Invoke-RestMethod -Uri ("$baseUrl/boards/{0}/members?{1}" -f $BoardId, $trelloConfig.String)
 		} catch {
 			Write-Error $_.Exception.Message
 		}
@@ -526,26 +420,14 @@ function Get-TrelloCustomField {
 		[Parameter(Mandatory, ValueFromPipelineByPropertyName)]
 		[ValidateNotNullOrEmpty()]
 		[Alias('Id')]
-		[string]$BoardId,
-
-		[Parameter()]
-		[ValidateNotNullOrEmpty()]
-		[pscredential]$ApiCredential
+		[string]$BoardId
 	)
 	begin {
 		$ErrorActionPreference = 'Stop'
 	}
 	process {
 		try {
-			if ($PSBoundParameters.ContainsKey('ApiCredential')) {
-				$apiKey = $ApiCredential.UserName
-				$accessToken = $ApiCredential.GetNetworkCredential().Password
-			} else {
-				$apiKey = $trelloConfig.APIKey
-				$accessToken = $trelloConfig.AccessToken
-			}
-			$authString = NewUriAuthenticationString -ApiKey $apiKey -AccessToken $accessToken
-			Invoke-RestMethod -Uri ("$baseUrl/boards/{0}/customFields?{1}" -f $BoardId, $authString)
+			Invoke-RestMethod -Uri ("$baseUrl/boards/{0}/customFields?{1}" -f $BoardId, $trelloConfig.String)
 		} catch {
 			Write-Error $_.Exception.Message
 		}
@@ -562,11 +444,7 @@ function Remove-TrelloCardMember {
 		
 		[Parameter(Mandatory)]
 		[ValidateNotNullOrEmpty()]
-		[string]$MemberId,
-
-		[Parameter()]
-		[ValidateNotNullOrEmpty()]
-		[pscredential]$ApiCredential
+		[string]$MemberId
 		
 	)
 	begin {
@@ -574,15 +452,7 @@ function Remove-TrelloCardMember {
 	}
 	process {
 		try {
-			if ($PSBoundParameters.ContainsKey('ApiCredential')) {
-				$apiKey = $ApiCredential.UserName
-				$accessToken = $ApiCredential.GetNetworkCredential().Password
-			} else {
-				$apiKey = $trelloConfig.APIKey
-				$accessToken = $trelloConfig.AccessToken
-			}
-			$authString = NewUriAuthenticationString -ApiKey $apiKey -AccessToken $accessToken
-			$uri = "$baseUrl/cards/{0}/MemberId/{1}?{2}" -f $Card.Id, $MemberId, $authString
+			$uri = "$baseUrl/cards/{0}/MemberId/{1}?{2}" -f $Card.Id, $MemberId, $trelloConfig.String
 			Invoke-RestMethod -Uri $uri -Method Delete
 		} catch {
 			Write-Error $_.Exception.Message
@@ -600,11 +470,7 @@ function Get-Checklist {
 	
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
-		[string]$Name,
-
-		[Parameter()]
-		[ValidateNotNullOrEmpty()]
-		[pscredential]$ApiCredential
+		[string]$Name
 		
 	)
 	begin {
@@ -612,15 +478,7 @@ function Get-Checklist {
 	}
 	process {
 		try {
-			if ($PSBoundParameters.ContainsKey('ApiCredential')) {
-				$apiKey = $ApiCredential.UserName
-				$accessToken = $ApiCredential.GetNetworkCredential().Password
-			} else {
-				$apiKey = $trelloConfig.APIKey
-				$accessToken = $trelloConfig.AccessToken
-			}
-			$authString = NewUriAuthenticationString -ApiKey $apiKey -AccessToken $accessToken
-			$checkLists = Invoke-RestMethod -Uri ("$baseUrl/cards/{0}/checklists?{1}" -f $Card.Id, $authString)
+			$checkLists = Invoke-RestMethod -Uri ("$baseUrl/cards/{0}/checklists?{1}" -f $Card.Id, $trelloConfig.String)
 			if ($PSBoundParameters.ContainsKey('Name')) {
 				$checkLists | Where-Object {$_.name -eq $Name}
 			} else {
@@ -642,22 +500,10 @@ function Get-ChecklistItem {
 	
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
-		[string]$Name,
-
-		[Parameter()]
-		[ValidateNotNullOrEmpty()]
-		[pscredential]$ApiCredential
+		[string]$Name
 	)
 	begin {
 		$ErrorActionPreference = 'Stop'
-		if ($PSBoundParameters.ContainsKey('ApiCredential')) {
-			$apiKey = $ApiCredential.UserName
-			$accessToken = $ApiCredential.GetNetworkCredential().Password
-		} else {
-			$apiKey = $trelloConfig.APIKey
-			$accessToken = $trelloConfig.AccessToken
-		}
-		$authString = NewUriAuthenticationString -ApiKey $apiKey -AccessToken $accessToken
 	}
 	process {
 		try {
@@ -687,27 +533,15 @@ function Disable-ChecklistItem {
 		
 		[Parameter(Mandatory, ValueFromPipeline)]
 		[ValidateNotNullOrEmpty()]
-		[pscustomobject]$ChecklistItem,
-
-		[Parameter()]
-		[ValidateNotNullOrEmpty()]
-		[pscredential]$ApiCredential
+		[pscustomobject]$ChecklistItem
 	)
 	begin {
 		$ErrorActionPreference = 'Stop'
 	}
 	process {
 		try {
-			if ($PSBoundParameters.ContainsKey('ApiCredential')) {
-				$apiKey = $ApiCredential.UserName
-				$accessToken = $ApiCredential.GetNetworkCredential().Password
-			} else {
-				$apiKey = $trelloConfig.APIKey
-				$accessToken = $trelloConfig.AccessToken
-			}
-			$authString = NewUriAuthenticationString -ApiKey $apiKey -AccessToken $accessToken
 			$params = @{
-				'Uri'    = "$baseUrl/cards/{0}/checklist/{1}/checkItem/{2}?state=false&{3}" -f $Card.Id, $Checklist.Id, $ChecklistItem.Id, $authString
+				'Uri'    = "$baseUrl/cards/{0}/checklist/{1}/checkItem/{2}?state=false&{3}" -f $Card.Id, $Checklist.Id, $ChecklistItem.Id, $trelloConfig.String
 				'Method' = 'Put'
 			}
 			Invoke-RestMethod @params
@@ -731,27 +565,15 @@ function Enable-ChecklistItem {
 		
 		[Parameter(Mandatory, ValueFromPipeline)]
 		[ValidateNotNullOrEmpty()]
-		[pscustomobject]$ChecklistItem,
-
-		[Parameter()]
-		[ValidateNotNullOrEmpty()]
-		[pscredential]$ApiCredential
+		[pscustomobject]$ChecklistItem
 	)
 	begin {
 		$ErrorActionPreference = 'Stop'
 	}
 	process {
 		try {
-			if ($PSBoundParameters.ContainsKey('ApiCredential')) {
-				$apiKey = $ApiCredential.UserName
-				$accessToken = $ApiCredential.GetNetworkCredential().Password
-			} else {
-				$apiKey = $trelloConfig.APIKey
-				$accessToken = $trelloConfig.AccessToken
-			}
-			$authString = NewUriAuthenticationString -ApiKey $apiKey -AccessToken $accessToken
 			$params = @{
-				'Uri'    = "$baseUrl/cards/{0}/checklist/{1}/checkItem/{2}?state=true&{3}" -f $Card.Id, $Checklist.Id, $ChecklistItem.Id, $authString
+				'Uri'    = "$baseUrl/cards/{0}/checklist/{1}/checkItem/{2}?state=true&{3}" -f $Card.Id, $Checklist.Id, $ChecklistItem.Id, $trelloConfig.String
 				'Method' = 'Put'	
 			}
 			Invoke-RestMethod @params
@@ -772,11 +594,7 @@ function Add-TrelloCardAttachment {
 		[Parameter(Mandatory)]
 		[ValidateNotNullOrEmpty()]
 		[ValidateScript({ Test-Path -Path $_ -PathType Leaf })]
-		[string]$FilePath,
-
-		[Parameter()]
-		[ValidateNotNullOrEmpty()]
-		[pscredential]$ApiCredential
+		[string]$FilePath
 	)
 	begin {
 		$ErrorActionPreference = 'Stop'
@@ -785,17 +603,8 @@ function Add-TrelloCardAttachment {
 		try {
 			$fileName = $FilePath | Split-Path -Leaf
 			$contents = Get-Content -Path $FilePath -Raw
-
-			if ($PSBoundParameters.ContainsKey('ApiCredential')) {
-				$apiKey = $ApiCredential.UserName
-				$accessToken = $ApiCredential.GetNetworkCredential().Password
-			} else {
-				$apiKey = $trelloConfig.APIKey
-				$accessToken = $trelloConfig.AccessToken
-			}
-			$authString = NewUriAuthenticationString -ApiKey $apiKey -AccessToken $accessToken
 			$params = @{
-				'Uri'    = "$baseUrl/cards/{0}/attachments?file={1}&name={2}&{3}" -f $Card.Id, $contents, $fileName, $authString
+				'Uri'    = "$baseUrl/cards/{0}/attachments?file={1}&name={2}&{3}" -f $Card.Id, $contents, $fileName, $trelloConfig.String
 				'Method' = 'Post'
 			}
 			$attachment = Invoke-RestMethod @params
@@ -816,28 +625,15 @@ function Get-TrelloCardAttachment {
 	
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
-		[string]$Name,
-
-		[Parameter()]
-		[ValidateNotNullOrEmpty()]
-		[pscredential]$ApiCredential
+		[string]$Name
 	)
 	begin {
 		$ErrorActionPreference = 'Stop'
 	}
 	process {
 		try {
-
-			if ($PSBoundParameters.ContainsKey('ApiCredential')) {
-				$apiKey = $ApiCredential.UserName
-				$accessToken = $ApiCredential.GetNetworkCredential().Password
-			} else {
-				$apiKey = $trelloConfig.APIKey
-				$accessToken = $trelloConfig.AccessToken
-			}
-			$authString = NewUriAuthenticationString -ApiKey $apiKey -AccessToken $accessToken
 			$params = @{
-				'Uri' = "$baseUrl/cards/{0}/attachments?{1}" -f $Card.Id, $authString
+				'Uri' = "$baseUrl/cards/{0}/attachments?{1}" -f $Card.Id, $trelloConfig.String
 			}
 			$attachments = Invoke-RestMethod @params
 			if ($PSBoundParameters.ContainsKey('Name')) {
@@ -845,6 +641,38 @@ function Get-TrelloCardAttachment {
 			} else {
 				$attachments	
 			}
+		} catch {
+			Write-Error $_.Exception.Message
+		}
+	}
+}
+
+function Get-TrelloCardAction {
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory, ValueFromPipeline)]
+		[ValidateNotNullOrEmpty()]
+		[object]$Card,
+	
+		[Parameter(Mandatory)]
+		[ValidateNotNullOrEmpty()]
+		[ValidateSet('UpdateCard')]
+		[string]$ActionFilter,
+
+		[Parameter(Mandatory)]
+		[ValidateNotNullOrEmpty()]
+		[string]$ActionFilterValue
+	)
+	begin {
+		$ErrorActionPreference = 'Stop'
+	}
+	process {
+		try {
+			$params = @{
+				'Uri' = "$baseUrl/cards/{0}/actions?filter={1}:{2}&{3}" -f $Card.Id, $ActionFilter, $ActionFilterValue, $trelloConfig.String
+			}
+			Invoke-RestMethod @params
 		} catch {
 			Write-Error $_.Exception.Message
 		}
@@ -872,17 +700,8 @@ function Set-CustomField {
 
 	$cusFieldId = ($cusField.options | where { $_.Value.text -eq $CustomFieldValue }).id
 
-	if ($PSBoundParameters.ContainsKey('ApiCredential')) {
-		$apiKey = $ApiCredential.UserName
-		$accessToken = $ApiCredential.GetNetworkCredential().Password
-	} else {
-		$apiKey = $trelloConfig.APIKey
-		$accessToken = $trelloConfig.AccessToken
-	}
-	$authString = NewUriAuthenticationString -ApiKey $apiKey -AccessToken $accessToken
-
 	$RestParams = @{
-		'uri'     = '{0}/card/{1}/customField/{2}/item?idValue={3}&{4}' -f $baseUrl, $Card.Id, $cusField.id, $cusFieldId, $authString
+		'uri'     = '{0}/card/{1}/customField/{2}/item?idValue={3}&{4}' -f $baseUrl, $Card.Id, $cusField.id, $cusFieldId, $trelloConfig.String
 		'Method'  = 'PUT'
 		'Body' = @{
 			'value' = @{ $cusField.type = $CustomFieldValue }
@@ -937,14 +756,6 @@ function New-TrelloCard {
 	)
 	begin {
 		$ErrorActionPreference = 'Stop'
-		if ($PSBoundParameters.ContainsKey('ApiCredential')) {
-			$apiKey = $ApiCredential.UserName
-			$accessToken = $ApiCredential.GetNetworkCredential().Password
-		} else {
-			$apiKey = $trelloConfig.APIKey
-			$accessToken = $trelloConfig.AccessToken
-		}
-		$authString = NewUriAuthenticationString -ApiKey $apiKey -AccessToken $accessToken
 	}
 	process {
 		try {
@@ -988,7 +799,7 @@ function New-TrelloCard {
 			}
 
 			$RestParams = @{
-				'uri'    = "$baseUrl/cards?$authString"
+				'uri'    = "$baseUrl/cards?$($trelloConfig.String)"
 				'Method' = 'Post'
 				'Body'   = $NewCardHash
 			}
