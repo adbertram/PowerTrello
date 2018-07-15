@@ -668,7 +668,8 @@ function Get-TrelloCardAction {
 
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
-		[string]$ActionFilterValue
+		[ValidateSet('idList')]
+		[string]$ActionFilterValue ## More exist but haven't been tested
 	)
 	begin {
 		$ErrorActionPreference = 'Stop'
@@ -676,9 +677,9 @@ function Get-TrelloCardAction {
 	process {
 		try {
 			if ($PSBoundParameters.ContainsKey('ActionFilter')) {
-				$uri = "$baseUrl/cards/{0}/actions?filter={1}:{2}&limit=1000&{3}" -f $Card.Id, $ActionFilter, $ActionFilterValue, $trelloConfig.String
+				$uri = "$baseUrl/cards/{0}/actions?filter={1}:{2}&filter=all&limit=1000&{3}" -f $Card.Id, $ActionFilter, $ActionFilterValue, $trelloConfig.String
 			} else {
-				$uri = "$baseUrl/cards/{0}/actions?limit=1000&{1}" -f $Card.Id, $trelloConfig.String
+				$uri = "$baseUrl/cards/{0}/actions?filter=all&limit=1000&{1}" -f $Card.Id, $trelloConfig.String
 			}
 			Invoke-RestMethod -Uri $uri
 		} catch {
