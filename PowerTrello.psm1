@@ -288,6 +288,8 @@ function Get-TrelloCard {
 
 			if ($IncludeAllActivity.IsPresent) {
 				$cards | Select-Object -Property *,@{n='Activity';e={ Get-TrelloCardAction -Card $_ }}
+			} else {
+				$cards
 			}
 		} catch {
 			Write-Error $_.Exception.Message
