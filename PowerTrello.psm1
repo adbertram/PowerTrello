@@ -460,7 +460,7 @@ function Remove-TrelloCardMember {
 	}
 	process {
 		try {
-			$uri = "$baseUrl/cards/{0}/MemberId/{1}?{2}" -f $Card.Id, $MemberId, $trelloConfig.String
+			$uri = "$baseUrl/cards/{0}/idMembers/{1}?{2}" -f $Card.Id, $MemberId, $trelloConfig.String
 			Invoke-RestMethod -Uri $uri -Method Delete
 		} catch {
 			Write-Error $_.Exception.Message
