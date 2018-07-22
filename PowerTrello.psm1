@@ -273,7 +273,7 @@ function Get-TrelloCard {
 			if ($IncludeArchived.IsPresent) {
 				$filter = 'all'
 			}
-			$cards = Invoke-RestMethod -Uri "$baseUrl/boards/$($Board.Id)/cards?filter=$filter&$($trelloConfig.String)"
+			$cards = Invoke-RestMethod -Uri "$baseUrl/boards/$($Board.Id)/cards?customFieldItems=true&filter=$filter&$($trelloConfig.String)"
 			if ($PSBoundParameters.ContainsKey('Label')) {
 				$cards = $cards | where { if (($_.labels) -and $_.labels.Name -contains $Label) { $true } }
 			} elseif ($PSBoundParameters.ContainsKey('Due')) {
