@@ -286,11 +286,30 @@ function Get-TrelloCard {
 				$cards = $cards | where {$_.idList -eq $List.id }
 			}
 
+			$properties = @('*')
 			if ($IncludeAllActivity.IsPresent) {
-				$cards | Select-Object -Property *,@{n='Activity';e={ Get-TrelloCardAction -Card $_ }}
+				$properties += @{n='Activity';e={ Get-TrelloCardAction -Card $_ }}
 			} else {
-				$cards
+				$boardCustomFields = Get-TrelloCustomField -BoardId $Board.id
+				$properties += @{n='CustomFields';e={ 
+					if ('customFieldItems' -in $_.PSObject.Properties.Name) {
+						$_.customFieldItems | foreach { 
+							$cardField = $_
+							$boardField = $boardCustomFields | Where { $_.id -eq $cardField.idCustomField }
+							if ('value' -in $cardField.PSObject.Properties.Name) {
+								$val = $cardField.value.text
+							} elseif ($cardFieldValue = $boardField.options | where { $_.id -eq $cardField.idValue }) {
+								$val = $cardFieldValue.value.text
+							}
+							[pscustomobject]@{
+								$boardField.Name = $val
+							}
+						 }
+					}
+				  }
+				}
 			}
+			$cards | Select-Object -Property $properties
 		} catch {
 			Write-Error $_.Exception.Message
 		}
