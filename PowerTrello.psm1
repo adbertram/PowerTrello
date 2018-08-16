@@ -293,6 +293,7 @@ function Get-TrelloCard {
 				$boardCustomFields = Get-TrelloCustomField -BoardId $Board.id
 				$properties += @{n='CustomFields';e={ 
 					if ('customFieldItems' -in $_.PSObject.Properties.Name) {
+						$fieldObj = @{}
 						$_.customFieldItems | foreach { 
 							$cardField = $_
 							$boardField = $boardCustomFields | Where { $_.id -eq $cardField.idCustomField }
@@ -301,10 +302,9 @@ function Get-TrelloCard {
 							} elseif ($cardFieldValue = $boardField.options | where { $_.id -eq $cardField.idValue }) {
 								$val = $cardFieldValue.value.text
 							}
-							[pscustomobject]@{
-								$boardField.Name = $val
-							}
+							$fieldObj[$boardField.Name] = $val
 						 }
+						 [pscustomobject]$fieldObj
 					}
 				  }
 				}
