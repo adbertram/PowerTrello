@@ -726,19 +726,25 @@ function Set-CustomField {
 
 	$ErrorActionPreference = 'Stop'
 
-	$cusField = (Get-TrelloCustomField -BoardId $Card.idBoard) | where {$_.name -eq $CustomFieldName}
-
-	$cusFieldId = ($cusField.options | where { $_.Value.text -eq $CustomFieldValue }).id
-
-	$RestParams = @{
-		'uri'     = '{0}/card/{1}/customField/{2}/item?idValue={3}&{4}' -f $baseUrl, $Card.Id, $cusField.id, $cusFieldId, $trelloConfig.String
-		'Method'  = 'PUT'
-		'Body' = @{
-			'value' = @{ $cusField.type = $CustomFieldValue }
+	if (-not ($cusField = (Get-TrelloCustomField -BoardId $Card.idBoard) | where {$_.name -eq $CustomFieldName})) {
+		Write-Error -Message "Custom field [$($CustomFieldName)] could not be found on the board."
+	} else {
+		if ('options' -in $cusField.PSObject.Properties.Name) {
+			$cusFieldId = ($cusField.options | where { $_.Value.text -eq $CustomFieldValue }).id
+			$uri = '{0}/card/{1}/customField/{2}/item?idValue={3}&{4}' -f $baseUrl, $Card.Id, $cusField.id, $cusFieldId, $trelloConfig.String
+		} else {
+			$uri = '{0}/card/{1}/customField/{2}/item?{3}' -f $baseUrl, $Card.Id, $cusField.id, $trelloConfig.String
 		}
-	}
 
-	$null = Invoke-RestMethod @RestParams
+		$RestParams = @{
+			Uri     = $uri
+			Method  = 'PUT'
+			Body = (ConvertTo-Json @{ 'value' = @{ $cusField.type = $CustomFieldValue }})
+			ContentType = 'application/json'
+		}
+
+		$null = Invoke-RestMethod @RestParams
+	}
 	
 }
 
