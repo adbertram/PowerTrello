@@ -316,6 +316,41 @@ function Get-TrelloCard {
 	}
 }
 
+function Update-TrelloCard {
+	[CmdletBinding(SupportsShouldProcess)]
+	param
+	(
+		[Parameter(Mandatory, ValueFromPipeline)]
+		[ValidateNotNullOrEmpty()]
+		[object]$Card,
+		
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[string]$Name,
+
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[string]$Description
+	)
+
+	$ErrorActionPreference = 'Stop'
+
+	$invParams = @{
+		Body = @{}
+		Method = 'PUT'
+	}
+
+	$fieldMap = @{
+		Name = 'name'
+		Description = 'desc'
+	}
+	$PSBoundParameters.GetEnumerator().where({$_.Key -ne 'Card'}).foreach({
+		$trelloFieldName = $fieldMap[$_.Key]
+		$invParams.Uri = '{0}/cards/{1}/{2}?value={3}&{4}' -f $baseUrl,$Card.id,$trelloFieldName,$_.Value,$trelloConfig.String
+		Invoke-RestMethod @invParams
+	})
+}
+
 function Get-TrelloLabel {
 	[CmdletBinding()]
 	param
