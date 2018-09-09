@@ -792,6 +792,50 @@ function Set-CustomField {
 	
 }
 
+function New-CustomFieldOption {
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory, ValueFromPipelineByPropertyName)]
+		[ValidateNotNullOrEmpty()]
+		[Alias('Id')]
+		[string]$BoardId,
+
+		[Parameter(Mandatory)]
+		[pscustomobject]$Name,
+
+		[Parameter(Mandatory)]
+		[string]$Value
+	)
+
+	$ErrorActionPreference = 'Stop'
+
+	$RestParams = @{
+		Method  = 'POST'
+		ContentType = 'application/json'
+	}
+
+	if (-not ($cusField = (Get-TrelloCustomField -BoardId $BoardId) | where {$_.name -eq $Name})) {
+		Write-Error -Message "Custom field [$($Name)] could not be found on the board."
+	} else {
+		if ('options' -in $cusField.PSObject.Properties.Name) {
+			$uri = '{0}/customField/{1}/options?{2}' -f $baseUrl, $cusField.Id, $trelloConfig.String
+			$body = (ConvertTo-Json @{ 
+				'value' = @{ 'text' = $Value }
+			})
+		} else {
+			Write-Error -Message 'Custom field does not support options.'
+		}
+
+		$RestParams += @{
+			Uri 	= $uri
+			Body 	= $body
+		}
+
+		$null = Invoke-RestMethod @RestParams
+	}
+}
+
 function New-TrelloCard {
 	[CmdletBinding()]
 	param
