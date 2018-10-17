@@ -288,10 +288,10 @@ function Get-TrelloCard {
 
 			$properties = @('*')
 			if ($IncludeAllActivity.IsPresent) {
-				$properties += @{n='Activity';e={ Get-TrelloCardAction -Card $_ }}
-			} else {
-				$boardCustomFields = Get-TrelloCustomField -BoardId $Board.id
-				$properties += @{n='CustomFields';e={ 
+				$properties += @{n='Activity'; e={ Get-TrelloCardAction -Card $_ }}
+			}
+			$boardCustomFields = Get-TrelloCustomField -BoardId $Board.id
+			$properties += @{n='CustomFields'; e={ 
 					if ('customFieldItems' -in $_.PSObject.Properties.Name) {
 						$fieldObj = @{}
 						$_.customFieldItems | foreach { 
@@ -303,10 +303,9 @@ function Get-TrelloCard {
 								$val = $cardFieldValue.value.text
 							}
 							$fieldObj[$boardField.Name] = $val
-						 }
-						 [pscustomobject]$fieldObj
+						}
+						[pscustomobject]$fieldObj
 					}
-				  }
 				}
 			}
 			$cards | Select-Object -Property $properties
@@ -336,19 +335,19 @@ function Update-TrelloCard {
 	$ErrorActionPreference = 'Stop'
 
 	$invParams = @{
-		Body = @{}
+		Body   = @{}
 		Method = 'PUT'
 	}
 
 	$fieldMap = @{
-		Name = 'name'
+		Name        = 'name'
 		Description = 'desc'
 	}
 	$PSBoundParameters.GetEnumerator().where({$_.Key -ne 'Card'}).foreach({
-		$trelloFieldName = $fieldMap[$_.Key]
-		$invParams.Uri = '{0}/cards/{1}/{2}?value={3}&{4}' -f $baseUrl,$Card.id,$trelloFieldName,$_.Value,$trelloConfig.String
-		Invoke-RestMethod @invParams
-	})
+			$trelloFieldName = $fieldMap[$_.Key]
+			$invParams.Uri = '{0}/cards/{1}/{2}?value={3}&{4}' -f $baseUrl, $Card.id, $trelloFieldName, $_.Value, $trelloConfig.String
+			Invoke-RestMethod @invParams
+		})
 }
 
 function Get-TrelloLabel {
@@ -762,7 +761,7 @@ function Set-CustomField {
 	$ErrorActionPreference = 'Stop'
 
 	$RestParams = @{
-		Method  = 'PUT'
+		Method      = 'PUT'
 		ContentType = 'application/json'
 	}
 
@@ -773,18 +772,18 @@ function Set-CustomField {
 			$cusFieldId = ($cusField.options | where { $_.Value.text -eq $CustomFieldValue }).id
 			$uri = '{0}/card/{1}/customField/{2}/item?{3}' -f $baseUrl, $Card.Id, $cusField.Id, $trelloConfig.String
 			$body = (ConvertTo-Json @{ 
-				'idValue' = $cusFieldid
-			})
+					'idValue' = $cusFieldid
+				})
 		} else {
 			$uri = '{0}/card/{1}/customField/{2}/item?{3}' -f $baseUrl, $Card.Id, $cusField.id, $trelloConfig.String
 			$body = (ConvertTo-Json @{ 'value' = @{ $cusField.type = $CustomFieldValue }})
 		}
 
 		$RestParams = @{
-			Uri     = $uri
-			Method  = 'PUT'
+			Uri         = $uri
+			Method      = 'PUT'
 			ContentType = 'application/json'
-			Body = $body
+			Body        = $body
 		}
 
 		$null = Invoke-RestMethod @RestParams
@@ -811,7 +810,7 @@ function New-CustomFieldOption {
 	$ErrorActionPreference = 'Stop'
 
 	$RestParams = @{
-		Method  = 'POST'
+		Method      = 'POST'
 		ContentType = 'application/json'
 	}
 
@@ -821,15 +820,15 @@ function New-CustomFieldOption {
 		if ('options' -in $cusField.PSObject.Properties.Name) {
 			$uri = '{0}/customField/{1}/options?{2}' -f $baseUrl, $cusField.Id, $trelloConfig.String
 			$body = (ConvertTo-Json @{ 
-				'value' = @{ 'text' = $Value }
-			})
+					'value' = @{ 'text' = $Value }
+				})
 		} else {
 			Write-Error -Message 'Custom field does not support options.'
 		}
 
 		$RestParams += @{
 			Uri 	= $uri
-			Body 	= $body
+			Body = $body
 		}
 
 		$null = Invoke-RestMethod @RestParams
