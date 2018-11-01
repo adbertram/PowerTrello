@@ -292,13 +292,24 @@ function Get-TrelloCard {
 			}
 			$boardCustomFields = Get-TrelloCustomField -BoardId $Board.id
 			$properties += @{n='CustomFields'; e={ 
+					if ($_.Name -eq 'Using Custom Fields To Capture User Input For Your System Frontier Tools') {
+						$foo = ''
+					}
 					if ('customFieldItems' -in $_.PSObject.Properties.Name) {
 						$fieldObj = @{}
 						$_.customFieldItems | foreach { 
 							$cardField = $_
 							$boardField = $boardCustomFields | Where { $_.id -eq $cardField.idCustomField }
 							if ('value' -in $cardField.PSObject.Properties.Name) {
-								$val = $cardField.value.text
+								if ('checked' -in $cardField.value.PSObject.Properties.Name) {
+									if ($cardField.value.checked -eq 'true') {
+										$val = $true
+									} else {
+										$val = $false
+									}
+								} else {
+									$val = $cardField.value.text
+								}
 							} elseif ($cardFieldValue = $boardField.options | where { $_.id -eq $cardField.idValue }) {
 								$val = $cardFieldValue.value.text
 							}
