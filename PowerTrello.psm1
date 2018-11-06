@@ -227,9 +227,10 @@ function New-TrelloBoard {
 				key   = $trelloConfig.APIKey
 				token = $trelloConfig.AccessToken
 				name  = $Name
+				defaultLists = 'false'
 			}
 			if ($PSBoundParameters.ContainsKey('TeamName')) {
-				$body.idOrganization = $TeamName
+				$body.idOrganization = (Get-TrelloTeam -Name $TeamName).id
 			}
 			$invParams = @{
 				Uri    = "$baseUrl/boards"
