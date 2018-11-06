@@ -205,6 +205,44 @@ function Get-TrelloBoard {
 	}
 }
 
+function New-TrelloBoard {
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory)]
+		[ValidateNotNullOrEmpty()]
+		[string]$Name,
+
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[string]$TeamName
+	)
+
+	begin {
+		$ErrorActionPreference = 'Stop'
+	}
+	process {
+		try {
+			$body = @{
+				key   = $trelloConfig.APIKey
+				token = $trelloConfig.AccessToken
+				name  = $Name
+			}
+			if ($PSBoundParameters.ContainsKey('TeamName')) {
+				$body.idOrganization = $TeamName
+			}
+			$invParams = @{
+				Uri    = "$baseUrl/boards"
+				Method = 'POST'
+				Body   = $body
+			}
+			Invoke-RestMethod @invParams
+		} catch {
+			Write-Error $_.Exception.Message
+		}
+	}
+}
+
 function Get-TrelloList {
 	[CmdletBinding()]
 	param
@@ -221,6 +259,83 @@ function Get-TrelloList {
 	process {
 		try {
 			Invoke-RestMethod -Uri "$baseUrl/boards/$BoardId/lists?$($trelloConfig.String)"
+		} catch {
+			Write-Error $_.Exception.Message
+		}
+	}
+}
+
+function Get-TrelloTeam {
+	[CmdletBinding()]
+	param
+	(
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[string]$Name
+	)
+	
+	begin {
+		$ErrorActionPreference = 'Stop'
+	}
+	process {
+		try {
+			$body = @{
+				key   = $trelloConfig.APIKey
+				token = $trelloConfig.AccessToken
+			}
+			$invParams = @{
+				Uri = '{0}/members/me/organizations?{1}' -f $baseUrl,$trelloConfig.String
+				Body = $body
+			}
+			$teams = Invoke-RestMethod @invParams
+			$whereFilter = { '*' }
+			if ($PSBoundParameters.ContainsKey('Name')) {
+				$whereFilter = { $_.displayName -eq $Name }
+			}
+			$teams.where($whereFilter)
+		} catch {
+			Write-Error $_.Exception.Message
+		}
+	}
+}
+
+function New-TrelloList {
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory)]
+		[ValidateNotNullOrEmpty()]
+		[string]$BoardId,
+
+		[Parameter(Mandatory)]
+		[ValidateNotNullOrEmpty()]
+		[string]$Name,
+
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[string]$Position
+	)
+
+	begin {
+		$ErrorActionPreference = 'Stop'
+	}
+	process {
+		try {
+			$body = @{
+				key     = $trelloConfig.APIKey
+				token   = $trelloConfig.AccessToken
+				idBoard = $BoardId
+				name    = $Name
+			}
+			if ($PSBoundParameters.ContainsKey('Position')) {
+				$body.pos = $Position
+			}
+			$invParams = @{
+				Uri    = "$baseUrl/boards/$BoardId/lists"
+				Method = 'POST'
+				Body   = $body
+			}
+			Invoke-RestMethod @invParams
 		} catch {
 			Write-Error $_.Exception.Message
 		}
@@ -376,49 +491,6 @@ function Get-TrelloLabel {
 		try {
 			$uri = "$baseUrl/boards/{0}/labels?{1}" -f $Board.Id, $trelloConfig.String
 			Invoke-RestMethod -Uri $uri
-		} catch {
-			Write-Error $_.Exception.Message
-		}
-	}
-}
-
-function New-TrelloList {
-	[CmdletBinding()]
-	param
-	(
-		[Parameter(Mandatory)]
-		[ValidateNotNullOrEmpty()]
-		[string]$BoardId,
-
-		[Parameter(Mandatory)]
-		[ValidateNotNullOrEmpty()]
-		[string]$Name,
-
-		[Parameter()]
-		[ValidateNotNullOrEmpty()]
-		[string]$Position
-	)
-
-	begin {
-		$ErrorActionPreference = 'Stop'
-	}
-	process {
-		try {
-			$body = @{
-				key     = $trelloConfig.APIKey
-				token   = $trelloConfig.AccessToken
-				idBoard = $BoardId
-				name    = $Name
-			}
-			if ($PSBoundParameters.ContainsKey('Position')) {
-				$body.pos = $Position
-			}
-			$invParams = @{
-				Uri    = "$baseUrl/boards/$BoardId/lists"
-				Method = 'POST'
-				Body   = $body
-			}
-			Invoke-RestMethod @invParams
 		} catch {
 			Write-Error $_.Exception.Message
 		}
