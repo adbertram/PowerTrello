@@ -310,7 +310,7 @@ function New-TrelloList {
 
 		[Parameter(Mandatory)]
 		[ValidateNotNullOrEmpty()]
-		[string]$Name,
+		[string[]]$Name,
 
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
@@ -326,17 +326,19 @@ function New-TrelloList {
 				key     = $trelloConfig.APIKey
 				token   = $trelloConfig.AccessToken
 				idBoard = $BoardId
-				name    = $Name
 			}
 			if ($PSBoundParameters.ContainsKey('Position')) {
 				$body.pos = $Position
 			}
+
 			$invParams = @{
 				Uri    = "$baseUrl/boards/$BoardId/lists"
 				Method = 'POST'
-				Body   = $body
 			}
-			Invoke-RestMethod @invParams
+			foreach ($n in $Name) {
+				$invParams.Body = ($body + @{ 'name' = $n })
+				Invoke-RestMethod @invParams
+			}
 		} catch {
 			Write-Error $_.Exception.Message
 		}
