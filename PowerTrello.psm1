@@ -215,7 +215,12 @@ function New-TrelloBoard {
 
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
-		[string]$TeamName
+		[string]$TeamName,
+
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[ValidateSet('org', 'private', 'public')]
+		[string]$Visibility = 'private'
 	)
 
 	begin {
@@ -224,11 +229,12 @@ function New-TrelloBoard {
 	process {
 		try {
 			$body = @{
-				key           = $trelloConfig.APIKey
-				token         = $trelloConfig.AccessToken
-				name          = $Name
-				defaultLists  = 'false'
-				defaultLabels = 'false'
+				key                   = $trelloConfig.APIKey
+				token                 = $trelloConfig.AccessToken
+				name                  = $Name
+				defaultLists          = 'false'
+				defaultLabels         = 'false'
+				prefs_permissionLevel = $Visibility
 			}
 			if ($PSBoundParameters.ContainsKey('TeamName')) {
 				$body.idOrganization = (Get-TrelloTeam -Name $TeamName).id
@@ -649,25 +655,29 @@ function Add-TrelloBoardMember {
 
 		[Parameter(Mandatory)]
 		[ValidateNotNullOrEmpty()]
-		[string]$Name
+		[string]$MemberId,
+
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[ValidateSet('admin', 'normal', 'observer')]
+		[string]$Type = 'normal'
 	)
 	begin {
 		$ErrorActionPreference = 'Stop'
 	}
 	process {
 		try {
-			# $body = @{
-			# 	key   = $trelloConfig.APIKey
-			# 	token = $trelloConfig.AccessToken
-			# 	name 	= $Name
-			# 	color = $Color
-			# }
-			# $invParams = @{
-			# 	Uri    = "{0}/boards/{1}/labels" -f $baseUrl, $Board.id
-			# 	Method = 'POST'
-			# 	Body   = $body
-			# }
-			# Invoke-RestMethod @invParams
+			$body = @{
+				key   = $trelloConfig.APIKey
+				token = $trelloConfig.AccessToken
+				type  = $Type
+			}
+			$invParams = @{
+				Uri    = '{0}/boards/{1}/members/{2}' -f $baseUrl, $Board.id, $MemberId
+				Method = 'PUT'
+				Body   = $body
+			}
+			Invoke-RestMethod @invParams
 		} catch {
 			Write-Error $_.Exception.Message
 		}
