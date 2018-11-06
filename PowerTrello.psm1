@@ -244,6 +244,50 @@ function New-TrelloBoard {
 	}
 }
 
+function Enable-BoardPowerUp {
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory,ValueFromPipeline)]
+		[ValidateNotNullOrEmpty()]
+		[pscustomobject]$Board,
+
+		[Parameter(Mandatory)]
+		[ValidateNotNullOrEmpty()]
+		[ValidateSet('Custom Fields')]
+		[string]$Name
+	)
+
+	begin {
+		$ErrorActionPreference = 'Stop'
+	}
+	process {
+		try {
+			switch ($Name) {
+				'Custom Fields' {
+					$pluginId = '56d5e249a98895a9797bebb9'
+				}
+				default {
+					throw "Unrecognized input: [$_]"
+				}
+			}
+			$body = @{
+				key   		= $trelloConfig.APIKey
+				token 		= $trelloConfig.AccessToken
+				idPlugin 	= $pluginId
+			}
+			$invParams = @{
+				Uri    = "$baseUrl/boards/$($Board.id)/boardPlugins"
+				Method = 'POST'
+				Body   = $body
+			}
+			Invoke-RestMethod @invParams
+		} catch {
+			Write-Error $_.Exception.Message
+		}
+	}
+}
+
 function Get-TrelloList {
 	[CmdletBinding()]
 	param
@@ -494,6 +538,46 @@ function Get-TrelloLabel {
 		try {
 			$uri = "$baseUrl/boards/{0}/labels?{1}" -f $Board.Id, $trelloConfig.String
 			Invoke-RestMethod -Uri $uri
+		} catch {
+			Write-Error $_.Exception.Message
+		}
+	}
+}
+
+function New-TrelloLabel {
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory, ValueFromPipeline)]
+		[ValidateNotNullOrEmpty()]
+		[object]$Board,
+
+		[Parameter(Mandatory)]
+		[ValidateNotNullOrEmpty()]
+		[string]$Name,
+
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[ValidateSet('yellow', 'purple', 'blue', 'red', 'green', 'orange', 'black', 'sky', 'pink', 'lime', 'null')]
+		[string]$Color = 'null'
+	)
+	begin {
+		$ErrorActionPreference = 'Stop'
+	}
+	process {
+		try {
+			$body = @{
+				key     = $trelloConfig.APIKey
+				token   = $trelloConfig.AccessToken
+				name 	= $Name
+				color 	= $Color
+			}
+			$invParams = @{
+				Uri    = "{0}/boards/{1}/labels" -f $baseUrl,$Board.id
+				Method = 'POST'
+				Body = $body
+			}
+			Invoke-RestMethod @invParams
 		} catch {
 			Write-Error $_.Exception.Message
 		}
@@ -846,7 +930,7 @@ function Get-TrelloCardAction {
 	}
 }
 
-function Set-CustomField {
+function Set-TrelloCustomField {
 	[CmdletBinding()]
 	param
 	(
@@ -894,7 +978,61 @@ function Set-CustomField {
 	
 }
 
-function New-CustomFieldOption {
+function New-TrelloCustomField {
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory,ValueFromPipeline)]
+		[ValidateNotNullOrEmpty()]
+		[pscustomobject]$Board,
+
+		[Parameter(Mandatory)]
+		[ValidateNotNullOrEmpty()]
+		[string]$Name,
+
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[string]$Position = 'bottom',
+
+		[Parameter()]
+		[ValidateSet('number', 'date', 'text', 'checkbox','list')]
+		[string]$Type,
+
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[switch]$DisplayCardFront
+	)
+
+	begin {
+		$ErrorActionPreference = 'Stop'
+	}
+	process {
+		try {
+			$body = @{
+				key     	= $trelloConfig.APIKey
+				token   	= $trelloConfig.AccessToken
+				idModel 	= $Board.id
+				modelType 	= 'board'
+				name 		= $Name
+				type 		= $Type
+				pos 		= $Position
+			}
+			if ($PSBoundParameters.ContainsKey('DisplayCardFront')) {
+				$body.display_cardFront = 'true'
+			}
+			$invParams = @{
+				Uri    = "$baseUrl/customFields"
+				Method = 'POST'
+				Body 	= $body
+			}
+			Invoke-RestMethod @invParams
+		} catch {
+			Write-Error $_.Exception.Message
+		}
+	}
+}
+
+function New-TrelloCustomFieldOption {
 	[CmdletBinding()]
 	param
 	(
@@ -1033,7 +1171,7 @@ function New-TrelloCard {
 			$card = Invoke-RestMethod @RestParams
 
 			if ($PSBoundParameters.ContainsKey('CustomFieldName')) {
-				Set-CustomField -Card $card -CustomFieldName $CustomFieldName -CustomFieldValue $CustomFieldValue
+				Set-TrelloCustomField -Card $card -CustomFieldName $CustomFieldName -CustomFieldValue $CustomFieldValue
 			}
 		} catch {
 			Write-Error $_.Exception.Message
