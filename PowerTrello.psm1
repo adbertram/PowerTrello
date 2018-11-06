@@ -382,26 +382,43 @@ function Get-TrelloLabel {
 	}
 }
 
-function Set-TrelloList {
+function New-TrelloList {
 	[CmdletBinding()]
 	param
 	(
-		[Parameter(Mandatory, ValueFromPipelineByPropertyName)]
-		[ValidateNotNullOrEmpty()]
-		[Alias('Id')]
-		[string]$CardId,
-		
 		[Parameter(Mandatory)]
 		[ValidateNotNullOrEmpty()]
-		[string]$ListId
+		[string]$BoardId,
+
+		[Parameter(Mandatory)]
+		[ValidateNotNullOrEmpty()]
+		[string]$Name,
+
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[string]$Position
 	)
+
 	begin {
 		$ErrorActionPreference = 'Stop'
 	}
 	process {
 		try {
-			$uri = "$baseUrl/cards/{0}?idList={1}&{2}" -f $CardId, $ListId, $trelloConfig.String
-			Invoke-RestMethod -Uri $uri -Method Put
+			$body = @{
+				key     = $trelloConfig.APIKey
+				token   = $trelloConfig.AccessToken
+				idBoard = $BoardId
+				name    = $Name
+			}
+			if ($PSBoundParameters.ContainsKey('Position')) {
+				$body.pos = $Position
+			}
+			$invParams = @{
+				Uri    = "$baseUrl/boards/$BoardId/lists"
+				Method = 'POST'
+				Body   = $body
+			}
+			Invoke-RestMethod @invParams
 		} catch {
 			Write-Error $_.Exception.Message
 		}
