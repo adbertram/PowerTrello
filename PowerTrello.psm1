@@ -224,10 +224,11 @@ function New-TrelloBoard {
 	process {
 		try {
 			$body = @{
-				key   = $trelloConfig.APIKey
-				token = $trelloConfig.AccessToken
-				name  = $Name
-				defaultLists = 'false'
+				key           = $trelloConfig.APIKey
+				token         = $trelloConfig.AccessToken
+				name          = $Name
+				defaultLists  = 'false'
+				defaultLabels = 'false'
 			}
 			if ($PSBoundParameters.ContainsKey('TeamName')) {
 				$body.idOrganization = (Get-TrelloTeam -Name $TeamName).id
@@ -248,7 +249,7 @@ function Enable-BoardPowerUp {
 	[CmdletBinding()]
 	param
 	(
-		[Parameter(Mandatory,ValueFromPipeline)]
+		[Parameter(Mandatory, ValueFromPipeline)]
 		[ValidateNotNullOrEmpty()]
 		[pscustomobject]$Board,
 
@@ -272,16 +273,16 @@ function Enable-BoardPowerUp {
 				}
 			}
 			$body = @{
-				key   		= $trelloConfig.APIKey
-				token 		= $trelloConfig.AccessToken
-				idPlugin 	= $pluginId
+				key      = $trelloConfig.APIKey
+				token    = $trelloConfig.AccessToken
+				idPlugin = $pluginId
 			}
 			$invParams = @{
 				Uri    = "$baseUrl/boards/$($Board.id)/boardPlugins"
 				Method = 'POST'
 				Body   = $body
 			}
-			Invoke-RestMethod @invParams
+			$null = Invoke-RestMethod @invParams
 		} catch {
 			Write-Error $_.Exception.Message
 		}
@@ -329,7 +330,7 @@ function Get-TrelloTeam {
 				token = $trelloConfig.AccessToken
 			}
 			$invParams = @{
-				Uri = '{0}/members/me/organizations?{1}' -f $baseUrl,$trelloConfig.String
+				Uri  = '{0}/members/me/organizations?{1}' -f $baseUrl, $trelloConfig.String
 				Body = $body
 			}
 			$teams = Invoke-RestMethod @invParams
@@ -338,6 +339,35 @@ function Get-TrelloTeam {
 				$whereFilter = { $_.displayName -eq $Name }
 			}
 			$teams.where($whereFilter)
+		} catch {
+			Write-Error $_.Exception.Message
+		}
+	}
+}
+
+function Get-TrelloTeamMember {
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory, ValueFromPipeline)]
+		[ValidateNotNullOrEmpty()]
+		[pscustomobject]$Team
+	)
+	
+	begin {
+		$ErrorActionPreference = 'Stop'
+	}
+	process {
+		try {
+			$body = @{
+				key   = $trelloConfig.APIKey
+				token = $trelloConfig.AccessToken
+			}
+			$invParams = @{
+				Uri  = '{0}/organizations/{1}/members?{2}' -f $baseUrl, $Team.id, $trelloConfig.String
+				Body = $body
+			}
+			Invoke-RestMethod @invParams
 		} catch {
 			Write-Error $_.Exception.Message
 		}
@@ -567,15 +597,15 @@ function New-TrelloLabel {
 	process {
 		try {
 			$body = @{
-				key     = $trelloConfig.APIKey
-				token   = $trelloConfig.AccessToken
+				key   = $trelloConfig.APIKey
+				token = $trelloConfig.AccessToken
 				name 	= $Name
-				color 	= $Color
+				color = $Color
 			}
 			$invParams = @{
-				Uri    = "{0}/boards/{1}/labels" -f $baseUrl,$Board.id
+				Uri    = "{0}/boards/{1}/labels" -f $baseUrl, $Board.id
 				Method = 'POST'
-				Body = $body
+				Body   = $body
 			}
 			Invoke-RestMethod @invParams
 		} catch {
@@ -603,6 +633,41 @@ function Add-TrelloCardComment {
 		try {
 			$uri = "$baseUrl/cards/{0}/actions/comments?{1}" -f $Card.Id, $trelloConfig.String
 			Invoke-RestMethod -Uri $uri -Method Post -Body @{ text =$Comment }
+		} catch {
+			Write-Error $_.Exception.Message
+		}
+	}
+}
+
+function Add-TrelloBoardMember {
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory, ValueFromPipeline)]
+		[ValidateNotNullOrEmpty()]
+		[object]$Board,
+
+		[Parameter(Mandatory)]
+		[ValidateNotNullOrEmpty()]
+		[string]$Name
+	)
+	begin {
+		$ErrorActionPreference = 'Stop'
+	}
+	process {
+		try {
+			# $body = @{
+			# 	key   = $trelloConfig.APIKey
+			# 	token = $trelloConfig.AccessToken
+			# 	name 	= $Name
+			# 	color = $Color
+			# }
+			# $invParams = @{
+			# 	Uri    = "{0}/boards/{1}/labels" -f $baseUrl, $Board.id
+			# 	Method = 'POST'
+			# 	Body   = $body
+			# }
+			# Invoke-RestMethod @invParams
 		} catch {
 			Write-Error $_.Exception.Message
 		}
@@ -640,7 +705,7 @@ function Add-TrelloCardMember {
 	}
 }
 
-function Get-TrelloMember {
+function Get-TrelloBoardMember {
 	[CmdletBinding()]
 	param
 	(
@@ -982,7 +1047,7 @@ function New-TrelloCustomField {
 	[CmdletBinding()]
 	param
 	(
-		[Parameter(Mandatory,ValueFromPipeline)]
+		[Parameter(Mandatory, ValueFromPipeline)]
 		[ValidateNotNullOrEmpty()]
 		[pscustomobject]$Board,
 
@@ -995,7 +1060,7 @@ function New-TrelloCustomField {
 		[string]$Position = 'bottom',
 
 		[Parameter()]
-		[ValidateSet('number', 'date', 'text', 'checkbox','list')]
+		[ValidateSet('number', 'date', 'text', 'checkbox', 'list')]
 		[string]$Type,
 
 		[Parameter()]
@@ -1009,13 +1074,13 @@ function New-TrelloCustomField {
 	process {
 		try {
 			$body = @{
-				key     	= $trelloConfig.APIKey
-				token   	= $trelloConfig.AccessToken
-				idModel 	= $Board.id
-				modelType 	= 'board'
-				name 		= $Name
-				type 		= $Type
-				pos 		= $Position
+				key       = $trelloConfig.APIKey
+				token     = $trelloConfig.AccessToken
+				idModel   = $Board.id
+				modelType = 'board'
+				name      = $Name
+				type      = $Type
+				pos       = $Position
 			}
 			if ($PSBoundParameters.ContainsKey('DisplayCardFront')) {
 				$body.display_cardFront = 'true'
@@ -1023,7 +1088,7 @@ function New-TrelloCustomField {
 			$invParams = @{
 				Uri    = "$baseUrl/customFields"
 				Method = 'POST'
-				Body 	= $body
+				Body   = $body
 			}
 			Invoke-RestMethod @invParams
 		} catch {
