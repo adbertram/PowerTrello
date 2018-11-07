@@ -1321,7 +1321,7 @@ function New-TrelloCard {
 				'Body'   = $NewCardHash
 			}
 
-			$card = Invoke-RestMethod @RestParams
+			Invoke-RestMethod @RestParams
 
 			if ($PSBoundParameters.ContainsKey('CustomFieldName')) {
 				Set-TrelloCustomField -Card $card -CustomFieldName $CustomFieldName -CustomFieldValue $CustomFieldValue
