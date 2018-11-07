@@ -667,15 +667,9 @@ function Add-TrelloBoardMember {
 	}
 	process {
 		try {
-			$body = @{
-				key   = $trelloConfig.APIKey
-				token = $trelloConfig.AccessToken
-				type  = $Type
-			}
 			$invParams = @{
-				Uri    = '{0}/boards/{1}/members/{2}' -f $baseUrl, $Board.id, $MemberId
+				Uri    = '{0}/boards/{1}/members/{2}?type={3}&key={4}&token={5}' -f $baseUrl, $Board.id, $MemberId, $Type, $trelloConfig.APIKey, $trelloConfig.AccessToken
 				Method = 'PUT'
-				Body   = $body
 			}
 			Invoke-RestMethod @invParams
 		} catch {
@@ -783,6 +777,47 @@ function Remove-TrelloCardMember {
 	}
 }
 
+function New-Checklist {
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory, ValueFromPipeline)]
+		[ValidateNotNullOrEmpty()]
+		[pscustomobject]$Card,
+
+		[Parameter(Mandatory)]
+		[ValidateNotNullOrEmpty()]
+		[string]$Name,
+
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[string[]]$Item
+	)
+
+	begin {
+		$ErrorActionPreference = 'Stop'
+	}
+	process {
+		try {
+			$commonBody = @{
+				key   = $trelloConfig.APIKey
+				token = $trelloConfig.AccessToken
+			}
+			$chParams = @{
+				Uri    = "$baseUrl/checklists"
+				Method = 'POST'
+				Body   = $commonBody + @{ idCard = $Card.id; name = $Name}
+			}
+			$checkList = Invoke-RestMethod @chParams
+			foreach ($i in $Item) {
+				$null = $checkList | New-ChecklistItem -Name $i
+			}
+		} catch {
+			Write-Error $_.Exception.Message
+		}
+	}
+}
+
 function Get-Checklist {
 	[CmdletBinding()]
 	param
@@ -812,6 +847,43 @@ function Get-Checklist {
 		}
 	}
 }
+
+function New-ChecklistItem {
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory, ValueFromPipeline)]
+		[ValidateNotNullOrEmpty()]
+		[pscustomobject]$Checklist,
+
+		[Parameter(Mandatory)]
+		[ValidateNotNullOrEmpty()]
+		[string[]]$Name
+	)
+
+	begin {
+		$ErrorActionPreference = 'Stop'
+	}
+	process {
+		try {
+			$body = @{
+				key   = $trelloConfig.APIKey
+				token = $trelloConfig.AccessToken
+			}
+			$invParams = @{
+				Uri    = "$baseUrl/checklists/{0}/checkItems" -f $Checklist.id
+				Method = 'POST'
+			}
+			foreach ($i in $Name) {
+				$invParams.Body = ($body + @{ 'name' = $i })
+				Invoke-RestMethod @invParams
+			}
+		} catch {
+			Write-Error $_.Exception.Message
+		}
+	}
+}
+
 
 function Get-ChecklistItem {
 	[CmdletBinding()]
@@ -1167,6 +1239,9 @@ function New-TrelloCard {
 		[string]$Description,
 
 		[Parameter()]
+		[datetime]$DueDate,
+
+		[Parameter()]
 		[string]$Position = 'bottom',
 
 		[Parameter()]
@@ -1235,6 +1310,9 @@ function New-TrelloCard {
 
 			if(-not [string]::IsNullOrEmpty($keepFromSource)) {
 				$NewCardHash['keepFromSource'] = $keepFromSource
+			}
+			if ($PSBoundParameters.ContainsKey('DueDate')) {
+				$NewCardHash['due'] = $DueDate.ToShortDateString()
 			}
 
 			$RestParams = @{
