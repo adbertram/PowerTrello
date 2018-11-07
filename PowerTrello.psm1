@@ -653,9 +653,13 @@ function Add-TrelloBoardMember {
 		[ValidateNotNullOrEmpty()]
 		[object]$Board,
 
-		[Parameter(Mandatory)]
+		[Parameter(Mandatory, ParameterSetName = 'ByMemberId')]
 		[ValidateNotNullOrEmpty()]
 		[string]$MemberId,
+
+		[Parameter(Mandatory, ParameterSetName = 'ByEmail')]
+		[ValidateNotNullOrEmpty()]
+		[string]$Email,
 
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
@@ -668,10 +672,17 @@ function Add-TrelloBoardMember {
 	process {
 		try {
 			$invParams = @{
-				Uri    = '{0}/boards/{1}/members/{2}?type={3}&key={4}&token={5}' -f $baseUrl, $Board.id, $MemberId, $Type, $trelloConfig.APIKey, $trelloConfig.AccessToken
 				Method = 'PUT'
 			}
-			Invoke-RestMethod @invParams
+			if ($PSBoundParameters.ContainsKey('MemberId')) {
+				$uri = '{0}/boards/{1}/members/{2}?type={3}' -f $baseUrl, $Board.id, $MemberId, $Type
+			} elseif ($PSBoundParameters.ContainsKey('Email')) {
+				$uri = '{0}/boards/{1}/members?email={2}' -f $baseUrl, $Board.id, $Email
+				$invParams.Headers = @{ type = $Type }
+			}
+			$uri += '&key={0}&token={1}' -f $trelloConfig.APIKey, $trelloConfig.AccessToken
+			$invParams.Uri = $uri
+			$null = Invoke-RestMethod @invParams
 		} catch {
 			Write-Error $_.Exception.Message
 		}
