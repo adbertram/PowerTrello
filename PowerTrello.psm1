@@ -251,6 +251,31 @@ function New-TrelloBoard {
 	}
 }
 
+function Remove-TrelloBoard {
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory, ValueFromPipeline)]
+		[ValidateNotNullOrEmpty()]
+		[pscustomobject]$Board
+	)
+
+	begin {
+		$ErrorActionPreference = 'Stop'
+	}
+	process {
+		try {
+			$invParams = @{
+				Uri    = "$baseUrl/boards/$($Board.id)"
+				Method = 'DELETE'
+			}
+			Invoke-RestMethod @invParams
+		} catch {
+			Write-Error $_.Exception.Message
+		}
+	}
+}
+
 function Enable-BoardPowerUp {
 	[CmdletBinding()]
 	param
@@ -1203,7 +1228,7 @@ function New-TrelloCustomFieldOption {
 		[pscustomobject]$Name,
 
 		[Parameter(Mandatory)]
-		[string]$Value
+		[string[]]$Value
 	)
 
 	$ErrorActionPreference = 'Stop'
@@ -1218,19 +1243,20 @@ function New-TrelloCustomFieldOption {
 	} else {
 		if ('options' -in $cusField.PSObject.Properties.Name) {
 			$uri = '{0}/customField/{1}/options?{2}' -f $baseUrl, $cusField.Id, $trelloConfig.String
-			$body = (ConvertTo-Json @{ 
-					'value' = @{ 'text' = $Value }
-				})
+
+			foreach ($val in $Value) {
+				$body = (ConvertTo-Json @{ 'value' = @{ 'text' = $val } })
+
+				$RestParams += @{
+					Uri  = $uri
+					Body = $body
+				}
+
+				$null = Invoke-RestMethod @RestParams
+			}
 		} else {
-			Write-Error -Message 'Custom field does not support options.'
+			throw 'Custom field does not support options.'
 		}
-
-		$RestParams += @{
-			Uri 	= $uri
-			Body = $body
-		}
-
-		$null = Invoke-RestMethod @RestParams
 	}
 }
 
