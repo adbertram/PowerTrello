@@ -1242,15 +1242,9 @@ function New-TrelloCustomFieldOption {
 		Write-Error -Message "Custom field [$($Name)] could not be found on the board."
 	} else {
 		if ('options' -in $cusField.PSObject.Properties.Name) {
-			$uri = '{0}/customField/{1}/options?{2}' -f $baseUrl, $cusField.Id, $trelloConfig.String
-
+			$restParams.Uri = '{0}/customField/{1}/options?{2}' -f $baseUrl, $cusField.Id, $trelloConfig.String
 			foreach ($val in $Value) {
-				$body = (ConvertTo-Json @{ 'value' = @{ 'text' = $val } })
-
-				$RestParams += @{
-					Uri  = $uri
-					Body = $body
-				}
+				$restParams.Body = (ConvertTo-Json @{ 'value' = @{ 'text' = $val } })
 
 				$null = Invoke-RestMethod @RestParams
 			}
