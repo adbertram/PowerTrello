@@ -1215,6 +1215,39 @@ function New-TrelloCustomField {
 	}
 }
 
+function Get-TrelloCustomFieldOption {
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory, ValueFromPipelineByPropertyName)]
+		[ValidateNotNullOrEmpty()]
+		[Alias('Id')]
+		[string]$BoardId,
+
+		[Parameter(Mandatory)]
+		[string]$CustomFieldName
+	)
+	begin {
+		$ErrorActionPreference = 'Stop'
+	}
+	process {
+		try {
+			if (-not ($cusField = (Get-TrelloCustomField -BoardId $BoardId) | where {$_.name -eq $CustomFieldName})) {
+				throw "Custom field [$($CustomFieldName)] could not be found on the board."
+			} else {
+				if ('options' -notin $cusField.PSObject.Properties.Name) {
+					throw 'Custom field does not support options.'
+				} else {
+					$uri = '{0}/customField/{1}/options?{2}' -f $baseUrl, $cusField.Id, $trelloConfig.String
+					Invoke-RestMethod -Uri $uri
+				}
+			}
+		} catch {
+			Write-Error $_.Exception.Message
+		}
+	}
+}
+
 function New-TrelloCustomFieldOption {
 	[CmdletBinding()]
 	param
@@ -1352,11 +1385,12 @@ function New-TrelloCard {
 				'Body'   = $NewCardHash
 			}
 
-			Invoke-RestMethod @RestParams
+			$card = Invoke-RestMethod @RestParams
 
 			if ($PSBoundParameters.ContainsKey('CustomFieldName')) {
 				Set-TrelloCustomField -Card $card -CustomFieldName $CustomFieldName -CustomFieldValue $CustomFieldValue
 			}
+			$card
 		} catch {
 			Write-Error $_.Exception.Message
 		}
