@@ -813,7 +813,7 @@ function Remove-TrelloCardMember {
 	}
 }
 
-function New-Checklist {
+function New-TrelloCardChecklist {
 	[CmdletBinding()]
 	param
 	(
@@ -846,7 +846,7 @@ function New-Checklist {
 			}
 			$checkList = Invoke-RestMethod @chParams
 			foreach ($i in $Item) {
-				$null = $checkList | New-ChecklistItem -Name $i
+				$null = $checkList | New-TrelloCardChecklistItem -Name $i
 			}
 		} catch {
 			Write-Error $_.Exception.Message
@@ -854,7 +854,7 @@ function New-Checklist {
 	}
 }
 
-function Get-Checklist {
+function Get-TrelloCardChecklist {
 	[CmdletBinding()]
 	param
 	(
@@ -874,9 +874,10 @@ function Get-Checklist {
 		try {
 			$checkLists = Invoke-RestMethod -Uri ("$baseUrl/cards/{0}/checklists?{1}" -f $Card.Id, $trelloConfig.String)
 			if ($PSBoundParameters.ContainsKey('Name')) {
-				$checkLists | Where-Object {$_.name -eq $Name}
-			} else {
-				$checkLists	
+				$checkLists = $checkLists | Where-Object {$_.name -eq $Name}
+			}
+			foreach ($cl in $checklists) {
+				$cl | Add-Member -NotePropertyName 'CardId' -NotePropertyValue $Card.id -PassThru
 			}
 		} catch {
 			Write-Error $_.Exception.Message
@@ -884,7 +885,7 @@ function Get-Checklist {
 	}
 }
 
-function New-ChecklistItem {
+function New-TrelloCardChecklistItem {
 	[CmdletBinding()]
 	param
 	(
@@ -920,8 +921,7 @@ function New-ChecklistItem {
 	}
 }
 
-
-function Get-ChecklistItem {
+function Get-TrelloCardChecklistItem {
 	[CmdletBinding()]
 	param
 	(
@@ -939,9 +939,13 @@ function Get-ChecklistItem {
 	process {
 		try {
 			if ($PSBoundParameters.ContainsKey('Name')) {
-				$checklist.checkItems | where {$_.Name -eq $Name}
+				$items = $checklist.checkItems | where {$_.Name -eq $Name}
 			} else {
-				$checklist.checkItems
+				$items = $checklist.checkItems
+			}
+			foreach ($item in $items) {
+				$item | Add-Member -NotePropertyName 'CheckListId' -NotePropertyValue $CheckList.id
+				$item | Add-Member -NotePropertyName 'CardId' -NotePropertyValue $CheckList.CardId -PassThru
 			}
 			
 		} catch {
@@ -950,7 +954,7 @@ function Get-ChecklistItem {
 	}
 }
 
-function Disable-ChecklistItem {
+function Disable-TrelloCardChecklistItem {
 	[CmdletBinding()]
 	param
 	(
@@ -982,7 +986,7 @@ function Disable-ChecklistItem {
 	}
 }
 
-function Enable-ChecklistItem {
+function Enable-TrelloCardChecklistItem {
 	[CmdletBinding()]
 	param
 	(
@@ -1013,6 +1017,31 @@ function Enable-ChecklistItem {
 		}
 	}
 }
+
+function Remove-TrelloCardChecklistItem {
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory, ValueFromPipeline)]
+		[ValidateNotNullOrEmpty()]
+		[pscustomobject]$ChecklistItem
+	)
+	begin {
+		$ErrorActionPreference = 'Stop'
+	}
+	process {
+		try {
+			$params = @{
+				'Uri'    = '{0}/cards/{1}/checkItem/{2}?{3}' -f $baseUrl, $CheckListItem.CardId,$ChecklistItem.Id, $trelloConfig.String
+				'Method' = 'DELETE'
+			}
+			$null = Invoke-RestMethod @params
+		} catch {
+			Write-Error $_.Exception.Message
+		}
+	}
+}
+
 
 function Add-TrelloCardAttachment {
 	[CmdletBinding()]
