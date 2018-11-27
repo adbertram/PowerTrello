@@ -80,7 +80,15 @@ function Get-TrelloConfiguration {
 	(
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
-		[string]$RegistryKeyPath = "HKCU:\Software\$ProjectName"
+		[string]$RegistryKeyPath = "HKCU:\Software\$ProjectName",
+
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[string]$ApiKey,
+
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[string]$AccessToken
 	)
 	
 	$ErrorActionPreference = 'Stop'
@@ -93,19 +101,22 @@ function Get-TrelloConfiguration {
 	}
 
 	try {
-		if (-not (Test-Path -Path $RegistryKeyPath)) {
-			Write-Verbose "No $ProjectName configuration found in registry"
+		if ($PSBoundParameters.ContainsKey('ApiKey') -and $PSBoundParameters.ContainsKey('AccessToken')) {
+			$ak = $ApiKey
+			$at = $AccessToken
+		} elseif (-not (Test-Path -Path $RegistryKeyPath)) {
+			throw "No $ProjectName configuration found in registry"
 		} else {
 			$keyValues = Get-ItemProperty -Path $RegistryKeyPath
 			$ak = decrypt $keyValues.APIKey
 			$at = decrypt $keyValues.AccessToken
-			$global:trelloConfig = [pscustomobject]@{
-				'APIKey'      = $ak
-				'AccessToken' = $at
-				'String'      = "key=$ak&token=$at"	
-			}
-			$trelloConfig
 		}
+		$global:trelloConfig = [pscustomobject]@{
+			'APIKey'      = $ak
+			'AccessToken' = $at
+			'String'      = "key=$ak&token=$at"	
+		}
+		$trelloConfig
 	} catch {
 		Write-Error $_.Exception.Message
 	}
@@ -972,7 +983,7 @@ function Set-TrelloCardChecklistItem {
 	process {
 		try {
 			$chParams = @{
-				Uri    = '{0}/cards/{1}/checkItem/{2}?name={3}&{4}' -f $baseUrl,$ChecklistItem.CardId,$ChecklistItem.id,$Name,$trelloConfig.String
+				Uri    = '{0}/cards/{1}/checkItem/{2}?name={3}&{4}' -f $baseUrl, $ChecklistItem.CardId, $ChecklistItem.id, $Name, $trelloConfig.String
 				Method = 'PUT'
 			}
 			$null = Invoke-RestMethod @chParams
@@ -1061,7 +1072,7 @@ function Remove-TrelloCardChecklistItem {
 	process {
 		try {
 			$params = @{
-				'Uri'    = '{0}/cards/{1}/checkItem/{2}?{3}' -f $baseUrl, $CheckListItem.CardId,$ChecklistItem.Id, $trelloConfig.String
+				'Uri'    = '{0}/cards/{1}/checkItem/{2}?{3}' -f $baseUrl, $CheckListItem.CardId, $ChecklistItem.Id, $trelloConfig.String
 				'Method' = 'DELETE'
 			}
 			$null = Invoke-RestMethod @params
