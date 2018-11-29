@@ -574,7 +574,11 @@ function Update-TrelloCard {
 
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
-		[string]$Description
+		[string]$Description,
+
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[string]$ListId
 	)
 
 	$ErrorActionPreference = 'Stop'
@@ -584,15 +588,44 @@ function Update-TrelloCard {
 		Method = 'PUT'
 	}
 
-	$fieldMap = @{
-		Name        = 'name'
-		Description = 'desc'
+	$fieldMap = @{}
+	if ($PSBoundParameters.ContainsKey('Name')) {
+		$fieldMap.Name = 'name'
+	}
+	if ($PSBoundParameters.ContainsKey('Description')) {
+		$fieldMap.Description = 'description'
+	}
+	if ($PSBoundParameters.ContainsKey('ListId')) {
+		$fieldMap.ListId = 'idList'
 	}
 	$PSBoundParameters.GetEnumerator().where({$_.Key -ne 'Card'}).foreach({
 			$trelloFieldName = $fieldMap[$_.Key]
 			$invParams.Uri = '{0}/cards/{1}/{2}?value={3}&{4}' -f $baseUrl, $Card.id, $trelloFieldName, $_.Value, $trelloConfig.String
 			Invoke-RestMethod @invParams
 		})
+}
+
+function Move-TrelloCard {
+	[CmdletBinding(SupportsShouldProcess)]
+	param
+	(
+		[Parameter(Mandatory, ValueFromPipeline)]
+		[ValidateNotNullOrEmpty()]
+		[object]$Card,
+		
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[string]$NewListName
+	)
+
+	$ErrorActionPreference = 'Stop'
+
+	if (-not ($list = (Get-TrelloList -BoardId $card.idBoard).where({ $_.name -eq $NewListName }))) {
+		throw "The list [$($NewListName)] was not found."
+	} else {
+		$null = $Card | Update-TrelloCard -ListId $list.id
+	}
+	
 }
 
 function Get-TrelloLabel {
