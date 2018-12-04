@@ -159,6 +159,38 @@ function Set-TrelloConfiguration {
 	}
 }
 
+function Invoke-PowerTrelloApiCall {
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory)]
+		[ValidateNotNullOrEmpty()]
+		[string]$UrlParameters,
+
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[hashtable]$HttpParameter,
+
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[string]$HttpMethod = 'GET'
+	)
+
+	$ErrorActionPreference = 'Stop'
+
+	$body = @{
+		'key'   = $trelloConfig.APIKey
+		'token' = $trelloConfig.AccessToken
+	}
+	if ($PSBoundParameters.ContainsKey('HttpParameter')) {
+		$body += $HttpParameter
+	}
+
+	$uri = '{0}/{1}' -f $baseUrl, $UrlParameters
+
+	Invoke-RestMethod -Method $HttpMethod -Uri $uri -Body $body
+}
+
 function Get-TrelloBoard {
 	[CmdletBinding(DefaultParameterSetName = 'None')]
 	param
@@ -180,34 +212,26 @@ function Get-TrelloBoard {
 	}
 	process {
 		try {
-			$getParams = @{
-				'key'   = $trelloConfig.APIKey
-				'token' = $trelloConfig.AccessToken
+			$invApiParams = @{
+				HTTPParameter = @{}
 			}
 			if (-not $IncludeClosedBoards.IsPresent) {
-				$getParams.filter = 'open'
+				$invApiParams.HTTPParameter.filter = 'open'
 			}
-			
-			$keyValues = @()
-			$getParams.GetEnumerator() | foreach {
-				$keyValues += "$($_.Key)=$($_.Value)"
-			}
-			
-			$paramString = $keyValues -join '&'
 			
 			switch ($PSCmdlet.ParameterSetName) {
 				'ByName' {
-					$uri = "$baseUrl/members/me/boards"
-					$boards = Invoke-RestMethod -Uri ('{0}?{1}' -f $uri, $paramString)
+					$invApiParams.UrlParameters = 'members/me/boards'
+					$boards = Invoke-PowerTrelloApiCall @invApiParams
 					$boards | where { $_.name -eq $Name }
 				}
 				'ById' {
-					$uri = "$baseUrl/boards/$Id"
-					Invoke-RestMethod -Uri ('{0}?{1}' -f $uri, $paramString)
+					$invApiParams.UrlParameters = "boards/$Id"
+					Invoke-PowerTrelloApiCall @invApiParams
 				}
 				default {
-					$uri = "$baseUrl/members/me/boards"
-					Invoke-RestMethod -Uri ('{0}?{1}' -f $uri, $paramString)
+					$invApiParams.UrlParameters = 'members/me/boards'
+					Invoke-PowerTrelloApiCall @invApiParams
 				}
 			}
 		} catch {
@@ -776,13 +800,12 @@ function Add-TrelloCardMember {
 	}
 	process {
 		try {
-			if ($Card.MemberId) {
-				throw 'Existing members found on card. This is not supported yet.'
-			} else {
-				$uri = "$baseUrl/cards/{0}?MemberId={1}&{2}" -f $Card.Id, $MemberId, $trelloConfig.String	
+			$body = @{
+				value = $MemberId
 			}
+			$uri = "$baseUrl/cards/{0}/idMembers?{1}" -f $Card.Id, $trelloConfig.String
 			
-			Invoke-RestMethod -Uri $uri -Method Put
+			$null = Invoke-RestMethod -Uri $uri -Method POST -Body $body
 		} catch {
 			Write-Error $_.Exception.Message
 		}
