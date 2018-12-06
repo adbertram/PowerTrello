@@ -165,11 +165,11 @@ function Invoke-PowerTrelloApiCall {
 	(
 		[Parameter(Mandatory)]
 		[ValidateNotNullOrEmpty()]
-		[string]$UrlParameters,
+		[string]$PathParameters,
 
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
-		[hashtable]$HttpParameter,
+		[hashtable]$QueryParameters,
 
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
@@ -182,11 +182,11 @@ function Invoke-PowerTrelloApiCall {
 		'key'   = $trelloConfig.APIKey
 		'token' = $trelloConfig.AccessToken
 	}
-	if ($PSBoundParameters.ContainsKey('HttpParameter')) {
-		$body += $HttpParameter
+	if ($PSBoundParameters.ContainsKey('QueryParameters')) {
+		$body += $QueryParameters
 	}
 
-	$uri = '{0}/{1}' -f $baseUrl, $UrlParameters
+	$uri = '{0}/{1}' -f $baseUrl, $PathParameters
 
 	Invoke-RestMethod -Method $HttpMethod -Uri $uri -Body $body
 }
@@ -213,24 +213,24 @@ function Get-TrelloBoard {
 	process {
 		try {
 			$invApiParams = @{
-				HTTPParameter = @{}
+				QueryParameter = @{}
 			}
 			if (-not $IncludeClosedBoards.IsPresent) {
-				$invApiParams.HTTPParameter.filter = 'open'
+				$invApiParams.QueryParameter.filter = 'open'
 			}
 			
 			switch ($PSCmdlet.ParameterSetName) {
 				'ByName' {
-					$invApiParams.UrlParameters = 'members/me/boards'
+					$invApiParams.PathParameters = 'members/me/boards'
 					$boards = Invoke-PowerTrelloApiCall @invApiParams
 					$boards | where { $_.name -eq $Name }
 				}
 				'ById' {
-					$invApiParams.UrlParameters = "boards/$Id"
+					$invApiParams.PathParameters = "boards/$Id"
 					Invoke-PowerTrelloApiCall @invApiParams
 				}
 				default {
-					$invApiParams.UrlParameters = 'members/me/boards'
+					$invApiParams.PathParameters = 'members/me/boards'
 					Invoke-PowerTrelloApiCall @invApiParams
 				}
 			}
@@ -776,6 +776,73 @@ function Add-TrelloBoardMember {
 			$uri += '&key={0}&token={1}' -f $trelloConfig.APIKey, $trelloConfig.AccessToken
 			$invParams.Uri = $uri
 			$null = Invoke-RestMethod @invParams
+		} catch {
+			Write-Error $_.Exception.Message
+		}
+	}
+}
+
+function Get-TrelloTeamMember {
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory, ValueFromPipeline)]
+		[ValidateNotNullOrEmpty()]
+		[object]$Team,
+
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[string]$Name
+	)
+	begin {
+		$ErrorActionPreference = 'Stop'
+	}
+	process {
+		try {
+			$invParams = @{
+				Method = 'GET'
+			}
+			$pathParams = 'organizations/{0}/members' -f $Team.id
+			if ($members = Invoke-PowerTrelloApiCall -PathParameters $pathParams) {
+				$members | Add-Member -NotePropertyName 'teamId' -NotePropertyValue $Team.id
+			}
+			if ($PSBoundParameters.ContainsKey('Name')) {
+				@($members).where({ $_.fullName -eq $Name })
+			} else {
+				$members
+			}
+		} catch {
+			Write-Error $_.Exception.Message
+		}
+	}
+}
+
+function Add-TrelloTeamMember {
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory, ValueFromPipeline)]
+		[ValidateNotNullOrEmpty()]
+		[object]$TeamMember,
+
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[ValidateSet('admin', 'normal')]
+		[string]$Type = 'normal'
+	)
+	begin {
+		$ErrorActionPreference = 'Stop'
+	}
+	process {
+		try {
+			$invParams = @{
+				HttpMethod = 'PUT'
+			}
+			$invParams.PathParameters = 'organizations/{0}/members/{1}' -f $TeamMember.teamId, $TeamMember.id
+			$invParams.QueryParameters = @{
+				type = $Type
+			}
+			Invoke-PowerTrelloApiCall @invParams
 		} catch {
 			Write-Error $_.Exception.Message
 		}
