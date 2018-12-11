@@ -1453,28 +1453,20 @@ function Get-TrelloCustomFieldOption {
 	[CmdletBinding()]
 	param
 	(
-		[Parameter(Mandatory, ValueFromPipelineByPropertyName)]
+		[Parameter(Mandatory, ValueFromPipeline)]
 		[ValidateNotNullOrEmpty()]
-		[Alias('Id')]
-		[string]$BoardId,
-
-		[Parameter(Mandatory)]
-		[string]$CustomFieldName
+		[pscustomobject]$CustomField
 	)
 	begin {
 		$ErrorActionPreference = 'Stop'
 	}
 	process {
 		try {
-			if (-not ($cusField = (Get-TrelloCustomField -BoardId $BoardId) | where {$_.name -eq $CustomFieldName})) {
-				throw "Custom field [$($CustomFieldName)] could not be found on the board."
+			if ('options' -notin $CustomField.PSObject.Properties.Name) {
+				throw 'Custom field does not support options.'
 			} else {
-				if ('options' -notin $cusField.PSObject.Properties.Name) {
-					throw 'Custom field does not support options.'
-				} else {
-					$uri = '{0}/customField/{1}/options?{2}' -f $baseUrl, $cusField.Id, $trelloConfig.String
-					Invoke-RestMethod -Uri $uri
-				}
+				$uri = '{0}/customField/{1}/options?{2}' -f $baseUrl, $CustomField.Id, $trelloConfig.String
+				Invoke-RestMethod -Uri $uri
 			}
 		} catch {
 			Write-Error $_.Exception.Message
@@ -1486,13 +1478,9 @@ function New-TrelloCustomFieldOption {
 	[CmdletBinding()]
 	param
 	(
-		[Parameter(Mandatory, ValueFromPipelineByPropertyName)]
+		[Parameter(Mandatory, ValueFromPipeline)]
 		[ValidateNotNullOrEmpty()]
-		[Alias('Id')]
-		[string]$BoardId,
-
-		[Parameter(Mandatory)]
-		[pscustomobject]$Name,
+		[pscustomobject]$CustomField,
 
 		[Parameter(Mandatory)]
 		[string[]]$Value
@@ -1505,19 +1493,15 @@ function New-TrelloCustomFieldOption {
 		ContentType = 'application/json'
 	}
 
-	if (-not ($cusField = (Get-TrelloCustomField -BoardId $BoardId) | where {$_.name -eq $Name})) {
-		Write-Error -Message "Custom field [$($Name)] could not be found on the board."
-	} else {
-		if ('options' -in $cusField.PSObject.Properties.Name) {
-			$restParams.Uri = '{0}/customField/{1}/options?{2}' -f $baseUrl, $cusField.Id, $trelloConfig.String
-			foreach ($val in $Value) {
-				$restParams.Body = (ConvertTo-Json @{ 'value' = @{ 'text' = $val } })
+	if ('options' -in $CustomField.PSObject.Properties.Name) {
+		$restParams.Uri = '{0}/customField/{1}/options?{2}' -f $baseUrl, $CustomField.Id, $trelloConfig.String
+		foreach ($val in $Value) {
+			$restParams.Body = (ConvertTo-Json @{ 'value' = @{ 'text' = $val } })
 
-				$null = Invoke-RestMethod @RestParams
-			}
-		} else {
-			throw 'Custom field does not support options.'
+			$null = Invoke-RestMethod @RestParams
 		}
+	} else {
+		throw 'Custom field does not support options.'
 	}
 }
 
