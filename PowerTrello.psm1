@@ -550,9 +550,6 @@ function Get-TrelloCard {
 			}
 			$boardCustomFields = Get-TrelloCustomField -BoardId $Board.id
 			$properties += @{n='CustomFields'; e={ 
-					if ($_.Name -eq 'Using Custom Fields To Capture User Input For Your System Frontier Tools') {
-						$foo = ''
-					}
 					if ('customFieldItems' -in $_.PSObject.Properties.Name) {
 						$fieldObj = @{}
 						$_.customFieldItems | foreach { 
@@ -573,7 +570,9 @@ function Get-TrelloCard {
 							}
 							$fieldObj[$boardField.Name] = $val
 						}
-						[pscustomobject]$fieldObj
+						if (@($fieldObj.Keys).Count -gt 0) {
+							[pscustomobject]$fieldObj
+						}
 					}
 				}
 			}
