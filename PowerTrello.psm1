@@ -197,11 +197,11 @@ function Get-TrelloBoard {
 	(
 		[Parameter(ParameterSetName = 'ByName')]
 		[ValidateNotNullOrEmpty()]
-		[string]$Name,
+		[string[]]$Name,
 		
 		[Parameter(ParameterSetName = 'ById')]
 		[ValidateNotNullOrEmpty()]
-		[string]$Id,
+		[string[]]$Id,
 	
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
@@ -222,12 +222,16 @@ function Get-TrelloBoard {
 			switch ($PSCmdlet.ParameterSetName) {
 				'ByName' {
 					$invApiParams.PathParameters = 'members/me/boards'
-					$boards = Invoke-PowerTrelloApiCall @invApiParams
-					$boards | where { $_.name -eq $Name }
+					foreach ($bName in $Name) {
+						$boards = Invoke-PowerTrelloApiCall @invApiParams
+						$boards | where { $_.name -eq $bName }
+					}
 				}
 				'ById' {
-					$invApiParams.PathParameters = "boards/$Id"
-					Invoke-PowerTrelloApiCall @invApiParams
+					foreach ($bId in $Id) {
+						$invApiParams.PathParameters = "boards/$bId"
+						Invoke-PowerTrelloApiCall @invApiParams
+					}
 				}
 				default {
 					$invApiParams.PathParameters = 'members/me/boards'
