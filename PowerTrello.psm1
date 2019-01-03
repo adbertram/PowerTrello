@@ -566,6 +566,8 @@ function Get-TrelloCard {
 									} else {
 										$val = $false
 									}
+								} elseif ('date' -in $cardField.value.PSObject.Properties.Name) {
+									$val = $cardField.value.date
 								} else {
 									$val = $cardField.value.text
 								}
@@ -710,6 +712,30 @@ function New-TrelloLabel {
 				Body   = $body
 			}
 			Invoke-RestMethod @invParams
+		} catch {
+			Write-Error $_.Exception.Message
+		}
+	}
+}
+
+function Remove-TrelloLabel {
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory, ValueFromPipeline)]
+		[ValidateNotNullOrEmpty()]
+		[pscustomobject]$Label
+	)
+	begin {
+		$ErrorActionPreference = 'Stop'
+	}
+	process {
+		try {
+			$invParams = @{
+				Uri    = '{0}/labels/{1}?{2}' -f $baseUrl, $Label.id, $trelloConfig.String
+				Method = 'DELETE'
+			}
+			$null = Invoke-RestMethod @invParams
 		} catch {
 			Write-Error $_.Exception.Message
 		}
