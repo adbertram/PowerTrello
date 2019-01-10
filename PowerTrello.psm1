@@ -374,7 +374,9 @@ function Get-TrelloList {
 	}
 	process {
 		try {
-			Invoke-RestMethod -Uri "$baseUrl/boards/$BoardId/lists?$($trelloConfig.String)"
+			foreach ($list in (Invoke-RestMethod -Uri "$baseUrl/boards/$BoardId/lists?$($trelloConfig.String)")) {
+				$list
+			}
 		} catch {
 			Write-Error $_.Exception.Message
 		}
@@ -582,7 +584,9 @@ function Get-TrelloCard {
 					}
 				}
 			}
-			$cards | Select-Object -Property $properties
+			foreach ($card in ($cards | Select-Object -Property $properties)) {
+				$card
+			}
 		} catch {
 			Write-Error $_.Exception.Message
 		}
@@ -657,7 +661,7 @@ function Move-TrelloCard {
 	
 }
 
-function Get-TrelloLabel {
+function Get-TrelloBoardLabel {
 	[CmdletBinding()]
 	param
 	(
