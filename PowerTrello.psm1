@@ -611,6 +611,10 @@ function Update-TrelloCard {
 
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
+		[datetime]$DueDate,
+
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
 		[string]$ListId
 	)
 
@@ -630,6 +634,9 @@ function Update-TrelloCard {
 	}
 	if ($PSBoundParameters.ContainsKey('ListId')) {
 		$fieldMap.ListId = 'idList'
+	}
+	if ($PSBoundParameters.ContainsKey('DueDate')) {
+		$fieldMap.Due = Get-Date -Date $DueDate -Format 'yyyy-MM-dd'
 	}
 	$PSBoundParameters.GetEnumerator().where({$_.Key -ne 'Card'}).foreach({
 			$trelloFieldName = $fieldMap[$_.Key]
