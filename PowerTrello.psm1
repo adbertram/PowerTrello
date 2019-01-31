@@ -681,7 +681,7 @@ function Get-TrelloBoardLabel {
 	}
 	process {
 		try {
-			$uri = "$baseUrl/boards/{0}/labels?{1}" -f $Board.Id, $trelloConfig.String
+			$uri = "$baseUrl/boards/{0}/labels/?{1}&labels=all&limit=1000" -f $Board.Id, $trelloConfig.String
 			Invoke-RestMethod -Uri $uri
 		} catch {
 			Write-Error $_.Exception.Message
