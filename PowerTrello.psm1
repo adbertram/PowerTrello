@@ -611,7 +611,7 @@ function Update-TrelloCard {
 
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
-		[datetime]$DueDate,
+		[datetime]$Due,
 
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
@@ -621,26 +621,23 @@ function Update-TrelloCard {
 	$ErrorActionPreference = 'Stop'
 
 	$invParams = @{
-		Body   = @{}
 		Method = 'PUT'
 	}
 
-	$fieldMap = @{}
-	if ($PSBoundParameters.ContainsKey('Name')) {
-		$fieldMap.Name = 'name'
-	}
-	if ($PSBoundParameters.ContainsKey('Description')) {
-		$fieldMap.Description = 'description'
-	}
-	if ($PSBoundParameters.ContainsKey('ListId')) {
-		$fieldMap.ListId = 'idList'
-	}
-	if ($PSBoundParameters.ContainsKey('DueDate')) {
-		$fieldMap.Due = Get-Date -Date $DueDate -Format 'yyyy-MM-dd'
+	$paramToTrelloFieldMap = @{
+		'Name'        = 'name'
+		'Description' = 'description'
+		'Due'         = 'due'
+		'ListId'      = 'idList'
 	}
 	$PSBoundParameters.GetEnumerator().where({$_.Key -ne 'Card'}).foreach({
-			$trelloFieldName = $fieldMap[$_.Key]
-			$invParams.Uri = '{0}/cards/{1}/{2}?value={3}&{4}' -f $baseUrl, $Card.id, $trelloFieldName, $_.Value, $trelloConfig.String
+			$fieldName = $paramToTrelloFieldMap[$_.Key]
+			if ($_.Key -eq 'Due') {
+				$fieldValue = Get-Date -Date $_.Value -Format 'yyyy-MM-dd'
+			} else {
+				$fieldValue = $_.Value
+			}
+			$invParams.Uri = '{0}/cards/{1}/{2}?value={3}&{4}' -f $baseUrl, $Card.id, $fieldName, $fieldValue, $trelloConfig.String
 			Invoke-RestMethod @invParams
 		})
 }
