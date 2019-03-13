@@ -649,6 +649,10 @@ function Move-TrelloCard {
 		[Parameter(Mandatory, ValueFromPipeline)]
 		[ValidateNotNullOrEmpty()]
 		[object]$Card,
+
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[string]$ToBoardName,
 		
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
@@ -657,7 +661,12 @@ function Move-TrelloCard {
 
 	$ErrorActionPreference = 'Stop'
 
-	if (-not ($list = (Get-TrelloList -BoardId $card.idBoard).where({ $_.name -eq $NewListName }))) {
+	if ($PSBoundParameters.ContainsKey('ToBoardName')) {
+		$boardId = Get-TrelloBoard -Name $ToBoardName
+	} else {
+		$boardId = $card.idBoard
+	}
+	if (-not ($list = (Get-TrelloList -BoardId $boardId).where({ $_.name -eq $NewListName }))) {
 		throw "The list [$($NewListName)] was not found."
 	} else {
 		$null = $Card | Update-TrelloCard -ListId $list.id
