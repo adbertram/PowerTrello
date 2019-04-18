@@ -1,4 +1,7 @@
 # PowerTrello
+
+[![Build status](https://ci.appveyor.com/api/projects/status/sfix5awr3a737yr3?svg=true)](https://ci.appveyor.com/project/adbertram/powertrello)
+
 PowerTrello is a PowerShell module for interacting with the Trello web service.
 
 ## How to Use
