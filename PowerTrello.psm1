@@ -213,7 +213,7 @@ function Get-TrelloBoard {
 	process {
 		try {
 			$invApiParams = @{
-				QueryParameter = @{}
+				QueryParameter = @{ }
 			}
 			if (-not $IncludeClosedBoards.IsPresent) {
 				$invApiParams.QueryParameter.filter = 'open'
@@ -543,21 +543,21 @@ function Get-TrelloCard {
 			} elseif ($PSBoundParameters.ContainsKey('Due')) {
 				Write-Warning -Message 'Due functionality is not complete.'
 			} elseif ($PSBoundParameters.ContainsKey('Name')) {
-				$cards = $cards | where {$_.Name -eq $Name}
+				$cards = $cards | where { $_.Name -eq $Name }
 			} elseif ($PSBoundParameters.ContainsKey('Id')) {
-				$cards = $cards | where {$_.idShort -eq $Id}
+				$cards = $cards | where { $_.idShort -eq $Id }
 			} elseif ($PSBoundParameters.ContainsKey('List')) {
-				$cards = $cards | where {$_.idList -eq $List.id }
+				$cards = $cards | where { $_.idList -eq $List.id }
 			}
 
 			$properties = @('*')
 			if ($IncludeAllActivity.IsPresent) {
-				$properties += @{n='Activity'; e={ Get-TrelloCardAction -Card $_ }}
+				$properties += @{n='Activity'; e={ Get-TrelloCardAction -Card $_ } }
 			}
 			$boardCustomFields = Get-TrelloCustomField -BoardId $Board.id
 			$properties += @{n='CustomFields'; e={ 
 					if ('customFieldItems' -in $_.PSObject.Properties.Name) {
-						$fieldObj = @{}
+						$fieldObj = @{ }
 						$_.customFieldItems | foreach { 
 							$cardField = $_
 							$boardField = $boardCustomFields | Where { $_.id -eq $cardField.idCustomField }
@@ -630,7 +630,7 @@ function Update-TrelloCard {
 		'Due'         = 'due'
 		'ListId'      = 'idList'
 	}
-	$PSBoundParameters.GetEnumerator().where({$_.Key -ne 'Card'}).foreach({
+	$PSBoundParameters.GetEnumerator().where({ $_.Key -ne 'Card' }).foreach({
 			$fieldName = $paramToTrelloFieldMap[$_.Key]
 			if ($_.Key -eq 'Due') {
 				$fieldValue = Get-Date -Date $_.Value -Format 'yyyy-MM-dd'
@@ -759,7 +759,7 @@ function Remove-TrelloLabel {
 	}
 }
 
-function Add-TrelloCardComment {
+function New-TrelloCardComment {
 	[CmdletBinding()]
 	param
 	(
@@ -1022,7 +1022,7 @@ function New-TrelloCardChecklist {
 			$chParams = @{
 				Uri    = "$baseUrl/checklists"
 				Method = 'POST'
-				Body   = $commonBody + @{ idCard = $Card.id; name = $Name}
+				Body   = $commonBody + @{ idCard = $Card.id; name = $Name }
 			}
 			$checkList = Invoke-RestMethod @chParams
 			foreach ($i in $Item) {
@@ -1054,7 +1054,7 @@ function Get-TrelloCardChecklist {
 		try {
 			$checkLists = Invoke-RestMethod -Uri ("$baseUrl/cards/{0}/checklists?{1}" -f $Card.Id, $trelloConfig.String)
 			if ($PSBoundParameters.ContainsKey('Name')) {
-				$checkLists = $checkLists | Where-Object {$_.name -eq $Name}
+				$checkLists = $checkLists | Where-Object { $_.name -eq $Name }
 			}
 			foreach ($cl in $checklists) {
 				$cl | Add-Member -NotePropertyName 'CardId' -NotePropertyValue $Card.id -PassThru
@@ -1119,7 +1119,7 @@ function Get-TrelloCardChecklistItem {
 	process {
 		try {
 			if ($PSBoundParameters.ContainsKey('Name')) {
-				$items = $checklist.checkItems | where {$_.Name -eq $Name}
+				$items = $checklist.checkItems | where { $_.Name -eq $Name }
 			} else {
 				$items = $checklist.checkItems
 			}
@@ -1306,7 +1306,7 @@ function Get-TrelloCardAttachment {
 			}
 			$attachments = Invoke-RestMethod @params
 			if ($PSBoundParameters.ContainsKey('Name')) {
-				$attachments | Where-Object {$_.name -eq $Name}
+				$attachments | Where-Object { $_.name -eq $Name }
 			} else {
 				$attachments	
 			}
@@ -1415,7 +1415,7 @@ function Set-TrelloCustomField {
 		ContentType = 'application/json'
 	}
 
-	if (-not ($cusField = (Get-TrelloCustomField -BoardId $Card.idBoard) | where {$_.name -eq $CustomFieldName})) {
+	if (-not ($cusField = (Get-TrelloCustomField -BoardId $Card.idBoard) | where { $_.name -eq $CustomFieldName })) {
 		Write-Error -Message "Custom field [$($CustomFieldName)] could not be found on the board."
 	} else {
 		if ('options' -in $cusField.PSObject.Properties.Name) {
@@ -1426,7 +1426,7 @@ function Set-TrelloCustomField {
 				})
 		} else {
 			$uri = '{0}/card/{1}/customField/{2}/item?{3}' -f $baseUrl, $Card.Id, $cusField.id, $trelloConfig.String
-			$body = (ConvertTo-Json @{ 'value' = @{ $cusField.type = $CustomFieldValue }})
+			$body = (ConvertTo-Json @{ 'value' = @{ $cusField.type = $CustomFieldValue } })
 		}
 
 		$RestParams = @{
