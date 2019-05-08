@@ -12,7 +12,11 @@ function Get-TrelloBoardMember {
 	}
 	process {
 		try {
-			Invoke-RestMethod -Uri ("$script:baseUrl/boards/{0}/members?{1}" -f $BoardId, $trelloConfig.String)
+			$invApiParams = @{
+				PathParameters = 'boards/{0}/members' -f $BoardId
+			}
+			
+			Invoke-PowerTrelloApiCall @invApiParams
 		} catch {
 			Write-Error $_.Exception.Message
 		}

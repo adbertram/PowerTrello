@@ -27,5 +27,5 @@ function Invoke-PowerTrelloApiCall {
 
 	$uri = '{0}/{1}' -f $script:baseUrl, $PathParameters
 
-	Invoke-RestMethod -Method $HttpMethod -Uri $uri -Body $body
+	(Invoke-RestMethod -Method $HttpMethod -Uri $uri -Body $body)
 }
