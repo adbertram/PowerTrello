@@ -11,7 +11,7 @@ function Remove-TrelloCustomFieldOption {
 	}
 	process {
 		try {
-			$pathParams = "customField/$($CustomField.Id)/options/$($CustomFieldOption._id)"
+			$pathParams = "customField/$($CustomFieldOption.customFieldId)/options/$($CustomFieldOption._id)"
 			Invoke-PowerTrelloApiCall -PathParameters $pathParams -HttpMethod 'DELETE'
 		} catch {
 			$PSCmdlet.ThrowTerminatingError($_)
