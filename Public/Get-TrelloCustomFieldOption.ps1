@@ -15,7 +15,13 @@ function Get-TrelloCustomFieldOption {
 				throw 'Custom field does not support options.'
 			} else {
 				$pathParams = "customField/$($CustomField.Id)/options"
-				Invoke-PowerTrelloApiCall -PathParameters $pathParams
+
+				## Add the custom field ID in the output to support piping to Remove-TrelloCustomFieldId
+				$properties = @(
+					'*',
+					@{ 'Name' = 'customFieldId'; Expression = { $CustomField.id } }
+				)
+				Invoke-PowerTrelloApiCall -PathParameters $pathParams | Select-Object -Property $properties
 			}
 		} catch {
 			$PSCmdlet.ThrowTerminatingError($_)
