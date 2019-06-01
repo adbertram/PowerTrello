@@ -14,7 +14,7 @@ function Get-TrelloCustomFieldOption {
 			if ('options' -notin $CustomField.PSObject.Properties.Name) {
 				throw 'Custom field does not support options.'
 			} else {
-				$pathParams = "/customField/$($CustomField.Id)/options"
+				$pathParams = "customField/$($CustomField.Id)/options"
 				Invoke-PowerTrelloApiCall -PathParameters $pathParams
 			}
 		} catch {
