@@ -1,31 +1,34 @@
 function Invoke-PowerTrelloApiCall {
-	[CmdletBinding()]
-	param
-	(
-		[Parameter(Mandatory)]
-		[ValidateNotNullOrEmpty()]
-		[string]$PathParameters,
+    [CmdletBinding()]
+    param
+    (
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$PathParameters,
 
-		[Parameter()]
-		[ValidateNotNullOrEmpty()]
-		[hashtable]$QueryParameters,
+        [Parameter()]
+        [ValidateNotNullOrEmpty()]
+        [hashtable]$QueryParameters,
 
-		[Parameter()]
-		[ValidateNotNullOrEmpty()]
-		[string]$HttpMethod = 'GET'
-	)
+        [Parameter()]
+        [ValidateNotNullOrEmpty()]
+        [string]$HttpMethod = 'GET'
+    )
 
-	$ErrorActionPreference = 'Stop'
+    $ErrorActionPreference = 'Stop'
 
-	$body = @{
-		'key'   = $trelloConfig.APIKey
-		'token' = $trelloConfig.AccessToken
-	}
-	if ($PSBoundParameters.ContainsKey('QueryParameters')) {
-		$body += $QueryParameters
-	}
+    if (-not (Get-Variable -Name 'trelloConfig' -Scope Script -ErrorAction Ignore)) {
+        $script:trelloConfig = Get-TrelloConfiguration
+    }
 
-	$uri = '{0}/{1}' -f $script:baseUrl, $PathParameters
+    $body = @{
+        'key'   = $script:trelloConfig.APIKey
+        'token' = $script:trelloConfig.AccessToken
+    }
+    if ($PSBoundParameters.ContainsKey('QueryParameters')) {
+        $body += $QueryParameters
+    }
 
-	(Invoke-RestMethod -Method $HttpMethod -Uri $uri -Body $body)
+    $uri = '{0}/{1}' -f $script:baseUrl, $PathParameters
+    Invoke-RestMethod -Method $HttpMethod -Uri $uri -Body $body
 }
