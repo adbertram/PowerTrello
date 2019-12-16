@@ -65,7 +65,7 @@ function Get-TrelloCard {
                 if ('customFieldItems' -in $card.PSObject.Properties.Name) {
                     $cFields = @()
                     $card.customFieldItems | foreach {
-                        $cFields += ConvertToCustomFieldValue -BoardId $Board.Id -CustomFieldItem $_ -BoardCustomFields $boardCustomFields
+                        $cFields += ConvertToFriendlyCustomField -BoardId $Board.Id -CustomFieldItem $_ -BoardCustomFields $boardCustomFields
                     }
                     $card | Add-Member -NotePropertyName 'CustomFields' -NotePropertyValue $cFields -PassThru
                 }
