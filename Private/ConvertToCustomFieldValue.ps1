@@ -1,4 +1,4 @@
-function ConvertToCustomFieldValue {
+function ConvertToFriendlyCustomField {
     [CmdletBinding()]
     param
     (
@@ -17,25 +17,30 @@ function ConvertToCustomFieldValue {
 
     $ErrorActionPreference = 'Stop'
 
+    $obj = @{ }
+
+    ## Find the board custom field
+    if (-not ($boardField = $BoardCustomFields | Where { $_.id -eq $CustomFieldItem.idCustomField })) {
+        throw "No board custom fields with ID $($CustomFieldItem.idCustomField) found on board ID $BoardId."
+    }
+
+    ## Find the card custom field value
     if ('value' -in $CustomFieldItem.PSObject.Properties.Name) {
         if ('checked' -in $CustomFieldItem.value.PSObject.Properties.Name) {
             if ($CustomFieldItem.value.checked -eq 'true') {
-                $true
+                $obj[$boardField.Name] = $true
             } else {
-                $false
+                $obj[$boardField.Name] = $false
             }
         } elseif ('date' -in $CustomFieldItem.value.PSObject.Properties.Name) {
-            $CustomFieldItem.value.date
+            $obj[$boardField.Name] = $CustomFieldItem.value.date
+        } elseif ('number' -in $CustomFieldItem.value.PSObject.Properties.Name) {
+            $obj[$boardField.Name] = $CustomFieldItem.value.number
         } else {
-            $CustomFieldItem.value.text
+            $obj[$boardField.Name] = $CustomFieldItem.value.text
         }
-    } else {
-        $boardField = $BoardCustomFields | Where { $_.id -eq $CustomFieldItem.idCustomField }
-        if (-not $boardField) {
-            throw "No board custom fields with ID $($CustomFieldItem.idCustomField) found on board ID $BoardId."
-        }
-        if ($CustomFieldItemValue = $boardField.options | where { $_.id -eq $CustomFieldItem.idValue }) {
-            $CustomFieldItemValue.value.text
-        }
+    } elseif ($CustomFieldItemValue = $boardField.options | where { $_.id -eq $CustomFieldItem.idValue }) {
+        $obj[$boardField.Name] = $CustomFieldItemValue.value.text
     }
+    [pscustomobject]$obj
 }
