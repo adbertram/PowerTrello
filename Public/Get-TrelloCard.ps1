@@ -57,21 +57,18 @@ function Get-TrelloCard {
                 $cards = $cards | where { $_.idList -eq $List.id }
             }
 
-            $properties = @('*')
-            if ($IncludeAllActivity.IsPresent) {
-                $properties += @{n='Activity'; e={ Get-TrelloCardAction -Card $_ } }
-            }
             $boardCustomFields = Get-TrelloCustomField -BoardId $Board.id
-            $properties += @{n='CustomFields'; e={ 
-                    if ('customFieldItems' -in $_.PSObject.Properties.Name) {
-                        $_.customFieldItems | foreach {
-                            ConvertToCustomFieldValue -BoardId $Board.Id -CustomFieldItem $_ -BoardCustomFields $boardCustomFields
-                        }
-                    }
+            foreach ($card in $cards) {
+                if ($IncludeAllActivity.IsPresent) {
+                    $card | Add-Member -NotePropertyName 'Activity' -NotePropertyValue (Get-TrelloCardAction -Card $_)
                 }
-            }
-            foreach ($card in ($cards | Select-Object -Property $properties)) {
-                $card
+                if ('customFieldItems' -in $card.PSObject.Properties.Name) {
+                    $cFields = @()
+                    $_.customFieldItems | foreach {
+                        $cFields += ConvertToCustomFieldValue -BoardId $Board.Id -CustomFieldItem $_ -BoardCustomFields $boardCustomFields
+                    }
+                    $card | Add-Member -NotePropertyName 'CustomFields' -NotePropertyValue $cFields -PassThru
+                }
             }
         } catch {
             Write-Error $_.Exception.Message
