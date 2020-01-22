@@ -1,5 +1,5 @@
 function Get-TrelloCard {
-    [CmdletBinding(DefaultParameterSetName = 'None')]
+    [CmdletBinding(DefaultParameterSetName = 'Id')]
     param
     (
         [Parameter(Mandatory, ValueFromPipeline)]
