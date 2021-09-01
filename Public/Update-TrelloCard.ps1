@@ -31,7 +31,7 @@ function Update-TrelloCard {
 
 	$paramToTrelloFieldMap = @{
 		'Name'        = 'name'
-		'Description' = 'description'
+		'Description' = 'desc'
 		'Due'         = 'due'
 		'ListId'      = 'idList'
 	}
