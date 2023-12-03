@@ -16,6 +16,9 @@ function New-TrelloCard {
 		[Parameter()]
 		[datetime]$DueDate,
 
+  		[Parameter()]
+		[date]$StartDate,
+
 		[Parameter()]
 		[string]$Position = 'bottom',
 
@@ -86,8 +89,13 @@ function New-TrelloCard {
 			if(-not [string]::IsNullOrEmpty($keepFromSource)) {
 				$NewCardHash['keepFromSource'] = $keepFromSource
 			}
+   
 			if ($PSBoundParameters.ContainsKey('DueDate')) {
 				$NewCardHash['due'] = $DueDate.ToShortDateString()
+			}
+
+   			if ($PSBoundParameters.ContainsKey('StartDate')) {
+				$NewCardHash['start'] = $StartDate.ToShortDateString()
 			}
 
 			$RestParams = @{
